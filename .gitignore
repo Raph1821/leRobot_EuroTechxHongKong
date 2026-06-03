@@ -1,0 +1,106 @@
+# =============================================================================
+# SO-100 / SO-101 ROS2 Robot Arm — .gitignore
+# =============================================================================
+
+# ─── Kiro IDE ────────────────────────────────────────────────────────────────
+.kiro/
+
+# ─── ROS2 / colcon build artifacts ───────────────────────────────────────────
+build/
+install/
+log/
+.colcon_*
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+.eggs/
+.hypothesis/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+pip-wheel-metadata/
+*.pyo
+*.pyd
+
+# ─── Node.js / web interface ─────────────────────────────────────────────────
+node_modules/
+web_interface/node_modules/
+web_interface/dist/
+web_interface/.vite/
+web_interface/coverage/
+web_static/
+
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# ─── OS artifacts ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+# (docker-compose.yaml and Dockerfile are kept in version control)
+.docker/
+
+# ─── Secrets and local config ────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ─── Isaac Sim cache ─────────────────────────────────────────────────────────
+.nvidia-omniverse/
+kit/
+isaac-sim-*/
+_isaac_sim/
+omni.log
+
+# ─── ROS2 bag files (can be large) ───────────────────────────────────────────
+*.db3
+*.mcap
+rosbag*/
+
+# ─── C++ build artifacts ─────────────────────────────────────────────────────
+*.o
+*.a
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# ─── Temporary files ─────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+*~
+.tmp/
+
+# ─── Test/coverage artifacts ─────────────────────────────────────────────────
+test-results/
+junit*.xml
+coverage*.xml
+lcov.info
+
+# ─── Pixi environments ───────────────────────────────────────────────────────
+.pixi/

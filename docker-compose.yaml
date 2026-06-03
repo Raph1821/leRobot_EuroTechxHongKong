@@ -1,0 +1,74 @@
+# =============================================================================
+# SO-100/SO-101 All-in-One — Docker Compose
+#
+# Usage:
+#   # Build first (requires so101 packages in context):
+#   ./scripts/docker-build.sh
+#
+#   # Then run (simulation + web interface):
+#   docker compose up
+#
+#   # Access:
+#   #   Web interface: http://localhost:8080
+#   #   WebSocket bridge: ws://localhost:9090
+#
+#   # With hardware (USB devices):
+#   docker compose --profile hardware up
+# =============================================================================
+
+services:
+  so100-dev:
+    image: so100-all-in-one:latest
+    container_name: so100-dev
+
+    # GPU support (for Isaac Sim)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]
+
+    # Host network for ROS2 DDS discovery
+    network_mode: host
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-all}
+      - DISPLAY=${DISPLAY:-:0}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - AUTO_START=${AUTO_START:-0}
+      - SKIP_GPU_CHECK=${SKIP_GPU_CHECK:-0}
+
+    volumes:
+      # Live code editing
+      - .:/workspace:rw
+      # X11 for GUI apps (RViz, Isaac Sim) — Linux only
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    ipc: host
+
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "ros2", "topic", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Service with USB device passthrough — use when hardware is connected
+  # Run with: docker compose --profile hardware up
+  so100-hardware:
+    extends:
+      service: so100-dev
+    container_name: so100-hardware
+    profiles:
+      - hardware
+    devices:
+      - ${USB_DEVICE_0:-/dev/ttyUSB0}:${USB_DEVICE_0:-/dev/ttyUSB0}
+      - ${USB_DEVICE_1:-/dev/ttyACM0}:${USB_DEVICE_1:-/dev/ttyACM0}
