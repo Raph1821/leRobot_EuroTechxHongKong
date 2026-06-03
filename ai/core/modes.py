@@ -1,6 +1,6 @@
 from enum import Enum
 
 
-class Mode(Enum):
+class AppMode(Enum):
     SORTING = "SORTING"
     PATROL = "PATROL"
