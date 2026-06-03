@@ -1,11 +1,4 @@
-# Core vision & OCR
-paddleocr>=2.7.3
+opencv-python==4.10.0.84
+paddleocr>=2.7.0
 paddlepaddle>=2.6.0
-opencv-python>=4.9.0
-numpy>=1.26.0
-
-# Fuzzy name matching
-rapidfuzz>=3.6.0
-
-# Optional: YOLO object detection (improves bottle/box detection)
-# ultralytics>=8.0.0
+rapidfuzz>=3.0.0
