@@ -4,6 +4,8 @@ import sys
 import time
 import cv2
 from paddleocr import PaddleOCR
+from core.modes import AppMode
+from patrol.patrol_mode import PatrolMode
 from sorting.expiration_date_parser import parse_expiration_date
 from sorting.medicine_name_parser import find_medicine_name
 from sorting.scan_state import MedicineScanState
@@ -76,9 +78,13 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Press 'q' to quit, 'r' to reset scan.")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  p=state  q=quit")
+
+    current_mode: AppMode = AppMode.SORTING
+    print("Entered SORTING mode")
 
     state = MedicineScanState()
+    patrol = PatrolMode(debug=DEBUG)
     crop_queue = mp.Queue(maxsize=1)
     result_queue = mp.Queue(maxsize=1)
 
@@ -91,52 +97,67 @@ def main() -> None:
             print("Error: failed to read frame from camera.", file=sys.stderr)
             break
 
-        _put_latest(crop_queue, _center_crop(frame))
-
-        try:
-            text = result_queue.get_nowait()
-            med_name = find_medicine_name(text)
-            exp_date = parse_expiration_date(text)
-            if DEBUG:
-                print("--- DEBUG OCR RESULT ---")
-                print(f"ocr_text:                 {text[:300]!r}")
-                print(f"parsed_medicine_name:     {med_name!r}")
-                print(f"parsed_expiration_date:   {exp_date!r}")
-                print(f"state_phase:              {state.phase}")
-                print(f"state_current_name:       {state.current_medicine_name!r}")
-                print(f"state_current_expiration: {state.current_expiration_date!r}")
-                print(f"state_no_text_cycles:     {state.no_text_cycles}")
-                print("------------------------")
-            if state.update(med_name, exp_date, text):
-                r = state.completed_results[-1]
-                print("\n================ MEDICINE FOUND ================")
-                print(f"medicine_name:   {r['medicine_name']}")
-                print(f"expiration_date: {r['expiration_date']}")
-                print("===============================================\n")
-            if state.removal_detected:
-                print("Medicine removed. Ready for next scan.")
-        except Exception:
-            pass
+        if current_mode == AppMode.SORTING:
+            _put_latest(crop_queue, _center_crop(frame))
+            try:
+                text = result_queue.get_nowait()
+                med_name = find_medicine_name(text)
+                exp_date = parse_expiration_date(text)
+                if DEBUG:
+                    print("--- DEBUG OCR RESULT ---")
+                    print(f"ocr_text:                 {text[:300]!r}")
+                    print(f"parsed_medicine_name:     {med_name!r}")
+                    print(f"parsed_expiration_date:   {exp_date!r}")
+                    print(f"state_phase:              {state.phase}")
+                    print(f"state_current_name:       {state.current_medicine_name!r}")
+                    print(f"state_current_expiration: {state.current_expiration_date!r}")
+                    print(f"state_no_text_cycles:     {state.no_text_cycles}")
+                    print("------------------------")
+                if state.update(med_name, exp_date, text):
+                    r = state.completed_results[-1]
+                    print("\n================ MEDICINE FOUND ================")
+                    print(f"medicine_name:   {r['medicine_name']}")
+                    print(f"expiration_date: {r['expiration_date']}")
+                    print("===============================================\n")
+                if state.removal_detected:
+                    print("Medicine removed. Ready for next scan.")
+            except Exception:
+                pass
+        elif current_mode == AppMode.PATROL:
+            patrol.process_frame(frame)
 
         cv2.imshow("Carebot AI - Live Feed", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
+        if key == ord("1") and current_mode != AppMode.SORTING:
+            current_mode = AppMode.SORTING
+            print("Entered SORTING mode")
+        if key == ord("2") and current_mode != AppMode.PATROL:
+            current_mode = AppMode.PATROL
+            print("Entered PATROL mode")
         if key == ord("r"):
-            state.reset_current()
-            print("Scan reset.")
+            if current_mode == AppMode.SORTING:
+                state.reset_current()
+                print("Scan reset.")
+            elif current_mode == AppMode.PATROL:
+                patrol.reset()
         if key == ord("d"):
             DEBUG = not DEBUG
             print(f"DEBUG {'on' if DEBUG else 'off'}")
+            patrol.set_debug(DEBUG)
         if key == ord("p"):
-            print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
-            if state.completed_results:
-                print("Scanned medicines:")
-                for i, r in enumerate(state.completed_results, 1):
-                    print(f"  {i}. {r['medicine_name']} | {r['expiration_date']}")
-            else:
-                print("No medicines scanned yet.")
-            print("-------------------------")
+            if current_mode == AppMode.SORTING:
+                print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
+                if state.completed_results:
+                    print("Scanned medicines:")
+                    for i, r in enumerate(state.completed_results, 1):
+                        print(f"  {i}. {r['medicine_name']} | {r['expiration_date']}")
+                else:
+                    print("No medicines scanned yet.")
+                print("-------------------------")
+            elif current_mode == AppMode.PATROL:
+                patrol.print_debug_state()
 
     proc.terminate()
     cap.release()
