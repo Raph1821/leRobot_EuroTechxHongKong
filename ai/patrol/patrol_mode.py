@@ -1,12 +1,14 @@
 import time
 import urllib.request
 from pathlib import Path
+from typing import Callable, Optional
 
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 
+from patrol.emergency_state import EMERGENCY_CONFIRMED, EmergencyState
 from patrol.fall_detector import detect_fall_or_lying
 
 _MODEL_URL = (
@@ -27,10 +29,15 @@ def _ensure_model() -> Path:
 
 
 class PatrolMode:
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(
+        self,
+        debug: bool = False,
+        on_camera_emergency: Optional[Callable[[], None]] = None,
+    ) -> None:
         self._debug = debug
+        self._on_camera_emergency = on_camera_emergency
         self._person_visible: bool = False
-        self._fall_detected: bool = False
+        self._emergency = EmergencyState()
         self._frame_count: int = 0
         self._start_ms: int = int(time.monotonic() * 1000)
 
@@ -60,37 +67,35 @@ class PatrolMode:
             print("Person detected")
         elif not detected and self._person_visible:
             self._person_visible = False
-            if self._fall_detected:
-                self._fall_detected = False
+            self._emergency.reset()
             print("Person lost")
 
         if detected and self._frame_count % _FALL_CHECK_EVERY == 0:
             h, w = frame.shape[:2]
             fall = detect_fall_or_lying(result.pose_landmarks[0], w, h)
-            if fall and not self._fall_detected:
-                self._fall_detected = True
-                print("Possible fall detected")
-            elif not fall and self._fall_detected:
-                self._fall_detected = False
-                print("Fall cleared")
+            prev_phase = self._emergency.phase
+            self._emergency.update(fall)
+            if prev_phase != EMERGENCY_CONFIRMED and self._emergency.phase == EMERGENCY_CONFIRMED:
+                if self._on_camera_emergency:
+                    self._on_camera_emergency()
 
         if self._debug:
             print(
                 f"[PATROL] person={self._person_visible}"
-                f"  fall={self._fall_detected}"
+                f"  emergency_phase={self._emergency.phase}"
                 f"  frame={self._frame_count}"
             )
 
     def reset(self) -> None:
         self._person_visible = False
-        self._fall_detected = False
+        self._emergency.reset()
         self._frame_count = 0
 
     def print_debug_state(self) -> None:
         print("\n--- PATROL mode state ---")
-        print(f"  person_visible: {self._person_visible}")
-        print(f"  fall_detected:  {self._fall_detected}")
-        print(f"  debug:          {self._debug}")
+        print(f"  person_visible:   {self._person_visible}")
+        print(f"  emergency_phase:  {self._emergency.phase}")
+        print(f"  debug:            {self._debug}")
         print("-------------------------")
 
     def set_debug(self, enabled: bool) -> None:

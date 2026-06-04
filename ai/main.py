@@ -5,6 +5,7 @@ import sys
 import time
 import cv2
 from paddleocr import PaddleOCR
+from core.event_log import EventLog
 from core.modes import AppMode
 from patrol.patrol_mode import PatrolMode
 from sorting.expiration_date_parser import parse_expiration_date
@@ -85,16 +86,22 @@ def main() -> None:
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
+    event_log = EventLog()
+
     def on_voice_emergency(text: str) -> None:
         print("EMERGENCY DETECTED: voice help request")
         print(f'Heard: "{text}"')
+        event_log.add_event("voice_emergency", "Emergency detected by voice request", {"heard": text})
+
+    def on_camera_emergency() -> None:
+        event_log.add_event("camera_emergency", "Emergency detected by fall detection")
 
     voice_queue: queue.Queue = queue.Queue()
     speech = SpeechListener(voice_queue, on_voice_emergency=on_voice_emergency, debug=DEBUG)
     speech.start()
 
     state = MedicineScanState()
-    patrol = PatrolMode(debug=DEBUG)
+    patrol = PatrolMode(debug=DEBUG, on_camera_emergency=on_camera_emergency)
     crop_queue = mp.Queue(maxsize=1)
     result_queue = mp.Queue(maxsize=1)
 
@@ -129,6 +136,11 @@ def main() -> None:
                     print(f"medicine_name:   {r['medicine_name']}")
                     print(f"expiration_date: {r['expiration_date']}")
                     print("===============================================\n")
+                    event_log.add_event(
+                        "medicine_scanned",
+                        f"{r['medicine_name']} - {r['expiration_date']}",
+                        {"medicine_name": r["medicine_name"], "expiration_date": r["expiration_date"]},
+                    )
                 if state.removal_detected:
                     print("Medicine removed. Ready for next scan.")
             except Exception:
@@ -180,6 +192,8 @@ def main() -> None:
             print(f"DEBUG {'on' if DEBUG else 'off'}")
             patrol.set_debug(DEBUG)
             speech.set_debug(DEBUG)
+        if key == ord("e"):
+            event_log.print_recent_events()
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
