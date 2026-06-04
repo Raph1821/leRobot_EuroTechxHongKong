@@ -85,8 +85,12 @@ def main() -> None:
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
+    def on_voice_emergency(text: str) -> None:
+        print("EMERGENCY DETECTED: voice help request")
+        print(f'Heard: "{text}"')
+
     voice_queue: queue.Queue = queue.Queue()
-    speech = SpeechListener(voice_queue)
+    speech = SpeechListener(voice_queue, on_voice_emergency=on_voice_emergency, debug=DEBUG)
     speech.start()
 
     state = MedicineScanState()
@@ -175,6 +179,7 @@ def main() -> None:
             DEBUG = not DEBUG
             print(f"DEBUG {'on' if DEBUG else 'off'}")
             patrol.set_debug(DEBUG)
+            speech.set_debug(DEBUG)
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
