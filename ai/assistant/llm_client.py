@@ -27,6 +27,9 @@ def _load_env() -> None:
 def _format_context(context: dict) -> str:
     parts = ["[Current system context]"]
 
+    if mode := context.get("current_mode"):
+        parts.append(f"Current mode: {mode}")
+
     if medicines := context.get("scanned_medicines"):
         parts.append("Scanned medicines:")
         for m in medicines:

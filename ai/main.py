@@ -12,6 +12,7 @@ from sorting.expiration_date_parser import parse_expiration_date
 from sorting.medicine_name_parser import find_medicine_name
 from sorting.scan_state import MedicineScanState
 from speech.speech_listener import SpeechListener
+from assistant.llm_client import LLMClient
 
 DEBUG = True
 
@@ -87,6 +88,7 @@ def main() -> None:
     print("Entered SORTING mode")
 
     event_log = EventLog()
+    llm_client = LLMClient()
 
     def on_voice_emergency(text: str) -> None:
         print("EMERGENCY DETECTED: voice help request")
@@ -194,6 +196,29 @@ def main() -> None:
             speech.set_debug(DEBUG)
         if key == ord("e"):
             event_log.print_recent_events()
+        if key == ord("a"):
+            print("\n================ CAREAI ASSISTANT ================")
+            print("Ask CareAI:")
+            try:
+                question = input("> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                question = ""
+            if question:
+                context = {
+                    "current_mode": current_mode.value,
+                    "scanned_medicines": state.completed_results,
+                    "recent_events": [
+                        {"event_type": e.event_type, "message": e.message}
+                        for e in event_log.get_all_events()[-10:]
+                    ],
+                    "patrol_status": patrol._emergency.phase,
+                }
+                print("\n================ CAREAI RESPONSE ================")
+                try:
+                    print(llm_client.ask(question, context=context))
+                except Exception as exc:
+                    print(f"CareAI error: {exc}")
+                print("=================================================\n")
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
