@@ -2,3 +2,4 @@ opencv-python==4.10.0.84
 paddleocr>=2.7.0
 paddlepaddle>=2.6.0
 rapidfuzz>=3.0.0
+mediapipe>=0.10.0
