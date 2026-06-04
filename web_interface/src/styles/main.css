@@ -1,0 +1,506 @@
+/* SO-100 Web Control Interface - Main Styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-bg: #1a1a2e;
+  --color-surface: #16213e;
+  --color-primary: #0f3460;
+  --color-accent: #e94560;
+  --color-text: #eaeaea;
+  --color-text-muted: #a0a0a0;
+  --color-connected: #4caf50;
+  --color-reconnecting: #ff9800;
+  --color-disconnected: #f44336;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ─── Status Bar ───────────────────────────────────────────────────────────── */
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-primary);
+}
+
+#status-bar h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* ─── Main Content Layout ──────────────────────────────────────────────────── */
+
+#main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#viewer-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#control-panel {
+  width: 320px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-primary);
+}
+
+#control-panel section {
+  margin-bottom: 1.5rem;
+}
+
+#control-panel h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Status Display ───────────────────────────────────────────────────────── */
+
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.status-display__connection {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.status-display__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-display__indicator--green {
+  background-color: var(--color-connected);
+  box-shadow: 0 0 4px var(--color-connected);
+}
+
+.status-display__indicator--yellow {
+  background-color: var(--color-reconnecting);
+  box-shadow: 0 0 4px var(--color-reconnecting);
+  animation: pulse 1.5s infinite;
+}
+
+.status-display__indicator--red {
+  background-color: var(--color-disconnected);
+  box-shadow: 0 0 4px var(--color-disconnected);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-display__connection-label {
+  font-weight: 500;
+}
+
+.status-display__connection-label--green {
+  color: var(--color-connected);
+}
+
+.status-display__connection-label--yellow {
+  color: var(--color-reconnecting);
+}
+
+.status-display__connection-label--red {
+  color: var(--color-disconnected);
+}
+
+.status-display__simulation {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.status-display__sim-state--running {
+  color: var(--color-connected);
+}
+
+.status-display__sim-state--paused {
+  color: var(--color-reconnecting);
+}
+
+.status-display__sim-state--disconnected {
+  color: var(--color-disconnected);
+}
+
+.status-display__notifications {
+  position: fixed;
+  top: 50px;
+  right: 16px;
+  z-index: 1000;
+  max-width: 400px;
+}
+
+.status-display__notification {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #3a1f1f;
+  border: 1px solid var(--color-disconnected);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.status-display__notification-dismiss {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.status-display__notification-dismiss:hover {
+  color: var(--color-text);
+}
+
+/* ─── Joint Control Panel ──────────────────────────────────────────────────── */
+
+.joint-control-panel h3 {
+  display: none; /* The section already has an h2 heading */
+}
+
+.joint-slider-wrapper {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.joint-slider-wrapper.joint-warning-active {
+  border: 1px solid var(--color-reconnecting);
+}
+
+.joint-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.joint-slider {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.joint-slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.joint-value {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: var(--color-text);
+  margin-top: 0.2rem;
+}
+
+.joint-warning {
+  color: var(--color-reconnecting);
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.joint-limits {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  margin-top: 0.1rem;
+  font-family: monospace;
+}
+
+/* ─── Gripper Control ──────────────────────────────────────────────────────── */
+
+.gripper-control {
+  padding: 0.5rem 0;
+}
+
+.gripper-control__label {
+  display: none; /* Already has section heading */
+}
+
+.gripper-control__slider-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.gripper-control__slider {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.gripper-control__slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gripper-control__value {
+  font-size: 0.75rem;
+  font-family: monospace;
+  min-width: 5rem;
+  text-align: right;
+}
+
+.gripper-control__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gripper-control__btn {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gripper-control__btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.gripper-control__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gripper-control__range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  margin-top: 0.25rem;
+}
+
+/* ─── Home Button ──────────────────────────────────────────────────────────── */
+
+.home-button {
+  margin-bottom: 0.5rem;
+}
+
+.home-button__btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.home-button__btn:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.home-button__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.home-button__notification {
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-reconnecting);
+  background: rgba(255, 152, 0, 0.1);
+  border-radius: 3px;
+}
+
+/* ─── Pose Manager ─────────────────────────────────────────────────────────── */
+
+.pose-manager h3 {
+  display: none; /* Section already has an h2 heading */
+}
+
+.pose-save-button,
+.pose-play-sequence-button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: var(--color-text);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+}
+
+.pose-save-button:hover:not(:disabled),
+.pose-play-sequence-button:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.pose-save-button:disabled,
+.pose-play-sequence-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pose-play-sequence-message {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.pose-progress-indicator {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-reconnecting);
+  background: rgba(255, 152, 0, 0.1);
+  border-radius: 3px;
+  margin-bottom: 0.5rem;
+  animation: pulse 1.5s infinite;
+}
+
+.pose-error-notification {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-disconnected);
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 3px;
+  margin-bottom: 0.5rem;
+}
+
+.pose-error-dismiss {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 0.2rem;
+}
+
+.pose-error-dismiss:hover {
+  color: var(--color-text);
+}
+
+.pose-empty-message {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.pose-list {
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pose-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 3px;
+  margin-bottom: 0.25rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pose-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pose-name {
+  flex: 1;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pose-select-button,
+.pose-delete-button {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 3px;
+  background: var(--color-primary);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pose-select-button:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.pose-delete-button:hover:not(:disabled) {
+  background: var(--color-disconnected);
+  border-color: var(--color-disconnected);
+}
+
+.pose-select-button:disabled,
+.pose-delete-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

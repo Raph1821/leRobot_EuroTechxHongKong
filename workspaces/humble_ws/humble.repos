@@ -1,0 +1,15 @@
+# VCS import file for Humble overlay workspace
+# The SO-100-arm packages are located at the repository root and are symlinked 
+# into this workspace's src/ directory.
+#
+# To set up the workspace:
+#   cd workspaces/humble_ws/src
+#   ln -s ../../../so_arm_100 .
+#   ln -s ../../../so_arm_100_bringup .
+#   ln -s ../../../so_arm_100_description .
+#   ln -s ../../../so_arm_100_moveit_config .
+#   ln -s ../../../so_arm_100_isaac_sim .
+#   ln -s ../../../so_arm_100_web_bridge .
+#
+# Or use the provided setup script:
+#   ./setup_sources.bash

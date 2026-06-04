@@ -1,0 +1,16 @@
+{
+  "names": {
+    "so_arm_100": {
+      "cmake-args": ["-DCMAKE_BUILD_TYPE=Release"]
+    },
+    "so_arm_100_description": {
+      "cmake-args": ["-DCMAKE_BUILD_TYPE=Release"]
+    },
+    "so_arm_100_bringup": {},
+    "so_arm_100_moveit_config": {
+      "cmake-args": ["-DCMAKE_BUILD_TYPE=Release"]
+    },
+    "so_arm_100_isaac_sim": {},
+    "so_arm_100_web_bridge": {}
+  }
+}

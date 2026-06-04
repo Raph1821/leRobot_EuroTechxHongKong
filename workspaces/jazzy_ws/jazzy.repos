@@ -1,0 +1,23 @@
+# VCS import file for Jazzy overlay workspace
+# The so101-ros-physical-ai packages should be cloned or symlinked into src/.
+#
+# Packages expected:
+#   - so101_bringup
+#   - so101_description
+#   - so101_teleop
+#   - so101_moveit_config
+#   - episode_recorder
+#   - rosbag_to_lerobot
+#   - so101_inference
+#   - so101_kinematics
+#   - so101_kinematics_msgs
+#   - so101_camera_calibration
+#   - feetech_ros2_driver
+#   - policy_server
+#
+# To import from a repository:
+# repositories:
+#   so101-ros-physical-ai:
+#     type: git
+#     url: https://github.com/<org>/so101-ros-physical-ai.git
+#     version: main
