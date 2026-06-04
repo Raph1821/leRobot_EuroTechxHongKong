@@ -34,6 +34,9 @@ inference/
 # YOLO / ultralytics model cache
 *.pt
 *.onnx
+
+# MediaPipe downloaded models
+*.task
 runs/
 
 # macOS
