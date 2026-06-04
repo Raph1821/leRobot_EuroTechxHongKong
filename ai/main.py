@@ -1,5 +1,6 @@
 import logging
 import multiprocessing as mp
+import queue
 import sys
 import time
 import cv2
@@ -9,6 +10,7 @@ from patrol.patrol_mode import PatrolMode
 from sorting.expiration_date_parser import parse_expiration_date
 from sorting.medicine_name_parser import find_medicine_name
 from sorting.scan_state import MedicineScanState
+from speech.speech_listener import SpeechListener
 
 DEBUG = True
 
@@ -83,6 +85,10 @@ def main() -> None:
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
+    voice_queue: queue.Queue = queue.Queue()
+    speech = SpeechListener(voice_queue)
+    speech.start()
+
     state = MedicineScanState()
     patrol = PatrolMode(debug=DEBUG)
     crop_queue = mp.Queue(maxsize=1)
@@ -125,6 +131,29 @@ def main() -> None:
                 pass
         elif current_mode == AppMode.PATROL:
             patrol.process_frame(frame)
+
+        try:
+            cmd = voice_queue.get_nowait()
+            if cmd == "sorting mode" and current_mode != AppMode.SORTING:
+                current_mode = AppMode.SORTING
+                print("Switching to SORTING mode")
+            elif cmd == "patrol mode" and current_mode != AppMode.PATROL:
+                current_mode = AppMode.PATROL
+                print("Switching to PATROL mode")
+            elif cmd == "show medicines":
+                if state.completed_results:
+                    for i, r in enumerate(state.completed_results, 1):
+                        print(f"  {i}. {r['medicine_name']} | {r['expiration_date']}")
+                else:
+                    print("No medicines scanned yet.")
+            elif cmd == "reset":
+                if current_mode == AppMode.SORTING:
+                    state.reset_current()
+                    print("Scan reset.")
+                elif current_mode == AppMode.PATROL:
+                    patrol.reset()
+        except queue.Empty:
+            pass
 
         cv2.imshow("Carebot AI - Live Feed", frame)
         key = cv2.waitKey(1) & 0xFF
