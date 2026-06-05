@@ -1,13 +1,15 @@
 import threading
 from datetime import datetime
+from typing import Optional
 
 from memory.care_memory import CareMemory
 
 
 class ReminderChecker:
-    def __init__(self, memory: CareMemory, interval: int = 30) -> None:
+    def __init__(self, memory: CareMemory, interval: int = 30, tts=None) -> None:
         self._memory = memory
         self._interval = interval
+        self._tts = tts
         # (date, schedule_id, time) — tracks what has already fired today
         self._fired: set[tuple[str, str, str]] = set()
         self._lock = threading.Lock()
@@ -43,6 +45,11 @@ class ReminderChecker:
                         continue
                     self._fired.add(key)
                 _print_reminder(schedule)
+                if self._tts:
+                    self._tts.speak(
+                        f"It's time to take {schedule['medicine_name']}. "
+                        f"Dose: {schedule['dose']}."
+                    )
 
 
 def _print_reminder(schedule: dict) -> None:

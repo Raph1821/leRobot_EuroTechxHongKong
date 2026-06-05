@@ -18,6 +18,7 @@ from assistant.intents import classify_intent
 from assistant.assistant_actions import handle_intent, ActionResult
 from memory.care_memory import CareMemory
 from reminders.reminder_checker import ReminderChecker
+from speech.tts_engine import TTSEngine
 
 DEBUG = True
 
@@ -98,14 +99,15 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
     event_log = EventLog()
     memory = CareMemory()
-    reminder_checker = ReminderChecker(memory)
+    tts = TTSEngine()
+    reminder_checker = ReminderChecker(memory, tts=tts)
     reminder_checker.start()
     llm_client = LLMClient()
 
@@ -115,11 +117,13 @@ def main() -> None:
         event_log.add_event("voice_emergency", "Emergency detected by voice request", {"heard": text})
         memory.add_emergency("voice", f'Emergency detected by voice: "{text}"', {"heard": text})
         memory.add_event("voice_emergency", f'Heard: "{text}"')
+        tts.speak("Emergency detected. Help may be needed.")
 
     def on_camera_emergency() -> None:
         event_log.add_event("camera_emergency", "Emergency detected by fall detection")
         memory.add_emergency("camera", "Emergency detected by fall detection")
         memory.add_event("camera_emergency", "Emergency detected by fall detection")
+        tts.speak("Emergency detected. Help may be needed.")
 
     voice_queue: queue.Queue = queue.Queue()
     speech = SpeechListener(voice_queue, on_voice_emergency=on_voice_emergency, debug=DEBUG)
@@ -262,6 +266,9 @@ def main() -> None:
                 elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
                     current_mode = AppMode.SORTING
                     print("Entered SORTING mode")
+        if key == ord("T"):
+            tts.speak("CareAI speaker test.")
+            print("Speaker test: speaking 'CareAI speaker test.'")
         if key == ord("R"):
             reminder_checker.check_now()
         if key == ord("S"):
