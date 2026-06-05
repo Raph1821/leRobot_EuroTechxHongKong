@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from datetime import datetime, timezone
 
 _EMPTY: dict = {
@@ -77,6 +78,47 @@ class CareMemory:
             "timestamp": _now(),
         })
         self.save()
+
+    def add_medicine_schedule(
+        self,
+        medicine_name: str,
+        dose: str,
+        times: list[str],
+        notes: str = "",
+    ) -> str:
+        schedule_id = str(uuid.uuid4())[:8]
+        self._data["medicine_schedule"].append({
+            "id": schedule_id,
+            "medicine_name": medicine_name,
+            "dose": dose,
+            "times": list(times),
+            "notes": notes,
+            "active": True,
+            "created_at": _now(),
+        })
+        self.save()
+        return schedule_id
+
+    def get_active_schedules(self) -> list[dict]:
+        return [s for s in self._data["medicine_schedule"] if s.get("active")]
+
+    def remove_medicine_schedule(self, schedule_id: str) -> bool:
+        before = len(self._data["medicine_schedule"])
+        self._data["medicine_schedule"] = [
+            s for s in self._data["medicine_schedule"] if s["id"] != schedule_id
+        ]
+        if len(self._data["medicine_schedule"]) < before:
+            self.save()
+            return True
+        return False
+
+    def mark_schedule_inactive(self, schedule_id: str) -> bool:
+        for s in self._data["medicine_schedule"]:
+            if s["id"] == schedule_id:
+                s["active"] = False
+                self.save()
+                return True
+        return False
 
     def get_context(self) -> dict:
         return {

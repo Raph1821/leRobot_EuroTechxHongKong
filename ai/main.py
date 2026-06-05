@@ -97,7 +97,7 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -259,6 +259,18 @@ def main() -> None:
                 elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
                     current_mode = AppMode.SORTING
                     print("Entered SORTING mode")
+        if key == ord("S"):
+            sid = memory.add_medicine_schedule("vitamin d", "1 tablet", ["09:00"], notes="take with food")
+            print(f"Sample schedule added (id={sid}): vitamin d - 1 tablet - 09:00")
+        if key == ord("M"):
+            schedules = memory.get_active_schedules()
+            print("\n================ MEDICINE SCHEDULE ================")
+            if not schedules:
+                print("  (no active schedules)")
+            for i, s in enumerate(schedules, 1):
+                times_str = ", ".join(s["times"])
+                print(f"  {i}. {s['medicine_name']} - {s['dose']} - {times_str}")
+            print("===================================================\n")
         if key == ord("m"):
             print("\n================ CARE MEMORY ================")
             print(f"Medicines:   {len(memory._data['scanned_medicines'])}")
