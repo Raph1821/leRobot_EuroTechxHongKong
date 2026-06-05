@@ -12,6 +12,17 @@ _EMPTY: dict = {
 }
 
 
+def _empty_profile() -> dict:
+    return {
+        "name": "",
+        "age": None,
+        "caregiver_name": "",
+        "caregiver_contact": "",
+        "reminder_voice_enabled": True,
+        "notes": [],
+    }
+
+
 class CareMemory:
     def __init__(self, path: str = "ai/data/care_memory.json") -> None:
         self._path = path
@@ -24,10 +35,16 @@ class CareMemory:
                     data = json.load(f)
                 for key in _EMPTY:
                     data.setdefault(key, [])
+                data.setdefault("profile", {})
+                profile = data["profile"]
+                for k, v in _empty_profile().items():
+                    profile.setdefault(k, v)
                 return data
             except (json.JSONDecodeError, OSError):
                 pass
-        return {k: list(v) for k, v in _EMPTY.items()}
+        fresh = {k: list(v) for k, v in _EMPTY.items()}
+        fresh["profile"] = _empty_profile()
+        return fresh
 
     def save(self) -> None:
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
@@ -120,11 +137,27 @@ class CareMemory:
                 return True
         return False
 
+    def get_profile(self) -> dict:
+        return self._data["profile"]
+
+    def update_profile(self, **kwargs) -> None:
+        allowed = {"name", "age", "caregiver_name", "caregiver_contact", "reminder_voice_enabled"}
+        profile = self._data["profile"]
+        for key, value in kwargs.items():
+            if key in allowed:
+                profile[key] = value
+        self.save()
+
+    def add_profile_note(self, note: str) -> None:
+        self._data["profile"]["notes"].append(note)
+        self.save()
+
     def get_context(self) -> dict:
         return {
             "scanned_medicines": list(self._data["scanned_medicines"]),
             "recent_events": self._data["events"][-20:],
             "recent_emergencies": self._data["emergencies"][-10:],
+            "profile": self.get_profile(),
         }
 
 

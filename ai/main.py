@@ -101,7 +101,7 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  Y=daily-summary  H=health-check  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -260,6 +260,7 @@ def main() -> None:
                     current_mode=current_mode.value,
                     llm_client=llm_client,
                     user_message=question,
+                    profile=mem_ctx.get("profile"),
                 )
                 print("\n================ CAREAI RESPONSE ================")
                 print(result.message)
@@ -309,6 +310,54 @@ def main() -> None:
             print(f"Events:      {len(memory._data['events'])}")
             print(f"Emergencies: {len(memory._data['emergencies'])}")
             print("=============================================\n")
+        if key == ord("P"):
+            profile = memory.get_profile()
+            print("\n================ CARE PROFILE ================")
+            print(f"Name:              {profile['name'] or '(not set)'}")
+            print(f"Age:               {profile['age'] if profile['age'] is not None else '(not set)'}")
+            print(f"Caregiver:         {profile['caregiver_name'] or '(not set)'}")
+            print(f"Caregiver contact: {profile['caregiver_contact'] or '(not set)'}")
+            if profile["notes"]:
+                print(f"Notes ({len(profile['notes'])}):")
+                for i, note in enumerate(profile["notes"], 1):
+                    print(f"  {i}. {note}")
+            else:
+                print("Notes:             (none)")
+            print("==============================================")
+            print("Update field? (name / age / caregiver_name / caregiver_contact / note / skip)")
+            try:
+                field = input("> ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                field = "skip"
+            if field in ("skip", ""):
+                pass
+            elif field == "name":
+                val = input("Name: ").strip()
+                memory.update_profile(name=val)
+                print("Saved.")
+            elif field == "age":
+                val = input("Age: ").strip()
+                try:
+                    memory.update_profile(age=int(val))
+                    print("Saved.")
+                except ValueError:
+                    print("Invalid age — not saved.")
+            elif field == "caregiver_name":
+                val = input("Caregiver name: ").strip()
+                memory.update_profile(caregiver_name=val)
+                print("Saved.")
+            elif field == "caregiver_contact":
+                val = input("Caregiver contact: ").strip()
+                memory.update_profile(caregiver_contact=val)
+                print("Saved.")
+            elif field == "note":
+                val = input("Note: ").strip()
+                if val:
+                    memory.add_profile_note(val)
+                    print("Saved.")
+            else:
+                print(f"Unknown field: {field!r} — skipped.")
+            print()
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")

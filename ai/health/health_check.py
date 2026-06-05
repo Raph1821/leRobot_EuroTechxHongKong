@@ -25,15 +25,6 @@ _FALLBACK_OK = (
     "Please rest and let a caregiver know if you don't feel better soon."
 )
 
-_LLM_PROMPT = (
-    "Health check conversation.\n"
-    "User says: \"{input}\"\n\n"
-    "Respond in 2-3 sentences. Do not diagnose. "
-    "If the user mentions serious symptoms (dizziness, pain, chest pain, "
-    "difficulty breathing, confusion, falling), recommend seeking professional help promptly. "
-    "Be caring and calm."
-)
-
 
 class HealthCheck:
     def run(
@@ -47,7 +38,8 @@ class HealthCheck:
         triggered = [kw for kw in CONCERN_KEYWORDS if kw in text]
         has_concern = bool(triggered)
 
-        response = self._respond(user_input, has_concern, llm_client)
+        profile = memory.get_profile() if memory else {}
+        response = self._respond(user_input, has_concern, llm_client, profile)
 
         if memory:
             memory.add_event("health_check", f"User reported: {user_input[:120]}")
@@ -65,9 +57,18 @@ class HealthCheck:
 
         return response
 
-    def _respond(self, user_input: str, has_concern: bool, llm_client) -> str:
+    def _respond(self, user_input: str, has_concern: bool, llm_client, profile: dict) -> str:
         if llm_client and not getattr(llm_client, "_disabled", True):
-            prompt = _LLM_PROMPT.format(input=user_input)
+            name_line = f"Patient name: {profile['name']}\n" if profile.get("name") else ""
+            prompt = (
+                f"Health check conversation.\n"
+                f"{name_line}"
+                f"User says: \"{user_input}\"\n\n"
+                f"Respond in 2-3 sentences. Do not diagnose. "
+                f"If the user mentions serious symptoms (dizziness, pain, chest pain, "
+                f"difficulty breathing, confusion, falling), recommend seeking professional help promptly. "
+                f"If the patient name is known, address them by name. Be caring and calm."
+            )
             try:
                 return llm_client.ask(prompt)
             except Exception:

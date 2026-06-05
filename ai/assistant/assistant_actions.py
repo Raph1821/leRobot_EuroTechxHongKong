@@ -21,6 +21,7 @@ def handle_intent(
     current_mode: str,
     llm_client: Any = None,
     user_message: str = "",
+    profile: Optional[dict] = None,
 ) -> ActionResult:
     if intent == LIST_MEDICINES:
         return _list_medicines(scanned_medicines)
@@ -37,7 +38,7 @@ def handle_intent(
     if intent == HELP:
         return _help()
     # UNKNOWN — fall back to Claude
-    return _ask_claude(llm_client, user_message, scanned_medicines, recent_events, patrol_status, current_mode)
+    return _ask_claude(llm_client, user_message, scanned_medicines, recent_events, patrol_status, current_mode, profile)
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +111,7 @@ def _help() -> ActionResult:
     )
 
 
-def _ask_claude(llm_client, user_message, medicines, events, patrol_status, current_mode) -> ActionResult:
+def _ask_claude(llm_client, user_message, medicines, events, patrol_status, current_mode, profile=None) -> ActionResult:
     if not llm_client:
         return ActionResult("I'm not sure how to help with that.")
     try:
@@ -120,6 +121,8 @@ def _ask_claude(llm_client, user_message, medicines, events, patrol_status, curr
             "recent_events": events,
             "patrol_status": patrol_status,
         }
+        if profile:
+            context["profile"] = profile
         return ActionResult(llm_client.ask(user_message, context=context))
     except Exception as exc:
         return ActionResult(f"CareAI error: {exc}")

@@ -27,6 +27,14 @@ def _load_env() -> None:
 def _format_context(context: dict) -> str:
     parts = ["[Current system context]"]
 
+    if profile := context.get("profile"):
+        if name := profile.get("name"):
+            parts.append(f"Patient name: {name}")
+        if age := profile.get("age"):
+            parts.append(f"Patient age: {age}")
+        if caregiver := profile.get("caregiver_name"):
+            parts.append(f"Caregiver: {caregiver}")
+
     if mode := context.get("current_mode"):
         parts.append(f"Current mode: {mode}")
 
