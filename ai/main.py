@@ -16,6 +16,7 @@ from speech.speech_listener import SpeechListener
 from assistant.llm_client import LLMClient
 from assistant.intents import classify_intent
 from assistant.assistant_actions import handle_intent, ActionResult
+from memory.care_memory import CareMemory
 
 DEBUG = True
 
@@ -96,21 +97,26 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  p=state  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
     event_log = EventLog()
+    memory = CareMemory()
     llm_client = LLMClient()
 
     def on_voice_emergency(text: str) -> None:
         print("EMERGENCY DETECTED: voice help request")
         print(f'Heard: "{text}"')
         event_log.add_event("voice_emergency", "Emergency detected by voice request", {"heard": text})
+        memory.add_emergency("voice", f'Emergency detected by voice: "{text}"', {"heard": text})
+        memory.add_event("voice_emergency", f'Heard: "{text}"')
 
     def on_camera_emergency() -> None:
         event_log.add_event("camera_emergency", "Emergency detected by fall detection")
+        memory.add_emergency("camera", "Emergency detected by fall detection")
+        memory.add_event("camera_emergency", "Emergency detected by fall detection")
 
     voice_queue: queue.Queue = queue.Queue()
     speech = SpeechListener(voice_queue, on_voice_emergency=on_voice_emergency, debug=DEBUG)
@@ -157,6 +163,9 @@ def main() -> None:
                         f"{r['medicine_name']} - {r['expiration_date']}",
                         {"medicine_name": r["medicine_name"], "expiration_date": r["expiration_date"]},
                     )
+                    _status = _expiration_status(r["expiration_date"])
+                    memory.add_medicine(r["medicine_name"], r["expiration_date"], status=_status)
+                    memory.add_event("medicine_scanned", f"{r['medicine_name']} - {r['expiration_date']}")
                 if state.removal_detected:
                     print("Medicine removed. Ready for next scan.")
             except Exception:
@@ -218,13 +227,18 @@ def main() -> None:
             except (EOFError, KeyboardInterrupt):
                 question = ""
             if question:
+                mem_ctx = memory.get_context()
                 enriched = [
-                    {**m, "status": _expiration_status(m.get("expiration_date", ""))}
-                    for m in state.completed_results
+                    {
+                        "medicine_name": m["name"],
+                        "expiration_date": m["expiration_date"],
+                        "status": m.get("status") or _expiration_status(m.get("expiration_date", "")),
+                    }
+                    for m in mem_ctx["scanned_medicines"]
                 ]
                 events = [
-                    {"event_type": e.event_type, "message": e.message}
-                    for e in event_log.get_all_events()[-10:]
+                    {"event_type": e["type"], "message": e["message"]}
+                    for e in mem_ctx["recent_events"]
                 ]
                 intent = classify_intent(question)["intent"]
                 result: ActionResult = handle_intent(
@@ -245,6 +259,12 @@ def main() -> None:
                 elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
                     current_mode = AppMode.SORTING
                     print("Entered SORTING mode")
+        if key == ord("m"):
+            print("\n================ CARE MEMORY ================")
+            print(f"Medicines:   {len(memory._data['scanned_medicines'])}")
+            print(f"Events:      {len(memory._data['events'])}")
+            print(f"Emergencies: {len(memory._data['emergencies'])}")
+            print("=============================================\n")
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")

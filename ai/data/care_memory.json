@@ -21,6 +21,14 @@
         "count": 2
       },
       "timestamp": "2026-06-05T11:02:28.696265+00:00"
+    },
+    {
+      "type": "scan",
+      "message": "Scanned medicine shelf",
+      "data": {
+        "count": 2
+      },
+      "timestamp": "2026-06-05T11:08:01.451610+00:00"
     }
   ],
   "emergencies": [
@@ -29,6 +37,12 @@
       "message": "User said: help me",
       "data": null,
       "timestamp": "2026-06-05T11:02:28.696352+00:00"
+    },
+    {
+      "source": "voice",
+      "message": "User said: help me",
+      "data": null,
+      "timestamp": "2026-06-05T11:08:01.452091+00:00"
     }
   ],
   "medicine_schedule": [],
