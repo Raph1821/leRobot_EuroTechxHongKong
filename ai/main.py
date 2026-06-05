@@ -17,6 +17,7 @@ from assistant.llm_client import LLMClient
 from assistant.intents import classify_intent
 from assistant.assistant_actions import handle_intent, ActionResult
 from memory.care_memory import CareMemory
+from memory.memory_recall import MemoryRecall
 from reminders.reminder_checker import ReminderChecker
 from speech.tts_engine import TTSEngine
 from summary.daily_summary import DailySummary
@@ -113,6 +114,7 @@ def main() -> None:
     reminder_checker = ReminderChecker(memory, tts=tts)
     reminder_checker.start()
     llm_client = LLMClient()
+    recall = MemoryRecall(memory)
     daily_summary = DailySummary(memory, llm_client=llm_client)
     morning_briefing = MorningBriefing(memory, llm_client=llm_client)
     health_check = HealthCheck()
@@ -251,7 +253,7 @@ def main() -> None:
                 ]
                 events = [
                     {"event_type": e["type"], "message": e["message"]}
-                    for e in mem_ctx["recent_events"]
+                    for e in recall.get_recent_events(10)
                 ]
                 intent = classify_intent(question)["intent"]
                 result: ActionResult = handle_intent(
@@ -263,6 +265,8 @@ def main() -> None:
                     llm_client=llm_client,
                     user_message=question,
                     profile=mem_ctx.get("profile"),
+                    active_schedules=recall.get_today_schedules(),
+                    recent_emergencies=recall.get_recent_emergencies(),
                 )
                 print("\n================ CAREAI RESPONSE ================")
                 print(result.message)

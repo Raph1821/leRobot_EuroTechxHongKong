@@ -55,6 +55,17 @@ def _format_context(context: dict) -> str:
     if status := context.get("patrol_status"):
         parts.append(f"Patrol status: {status}")
 
+    if schedules := context.get("active_schedules"):
+        parts.append("Active medicine schedule:")
+        for s in schedules:
+            times_str = ", ".join(s.get("times", []))
+            parts.append(f"  - {s.get('medicine_name', '?')} {s.get('dose', '')} at {times_str}")
+
+    if emergencies := context.get("recent_emergencies"):
+        parts.append("Recent emergencies:")
+        for e in emergencies[-3:]:
+            parts.append(f"  - [{e.get('source', '?')}] {e.get('message', '')}")
+
     return "\n".join(parts)
 
 
