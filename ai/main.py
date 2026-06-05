@@ -19,6 +19,7 @@ from assistant.assistant_actions import handle_intent, ActionResult
 from memory.care_memory import CareMemory
 from reminders.reminder_checker import ReminderChecker
 from speech.tts_engine import TTSEngine
+from summary.daily_summary import DailySummary
 
 DEBUG = True
 
@@ -99,7 +100,7 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  Y=daily-summary  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -110,6 +111,7 @@ def main() -> None:
     reminder_checker = ReminderChecker(memory, tts=tts)
     reminder_checker.start()
     llm_client = LLMClient()
+    daily_summary = DailySummary(memory, llm_client=llm_client)
 
     def on_voice_emergency(text: str) -> None:
         print("EMERGENCY DETECTED: voice help request")
@@ -266,6 +268,12 @@ def main() -> None:
                 elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
                     current_mode = AppMode.SORTING
                     print("Entered SORTING mode")
+        if key == ord("Y"):
+            summary = daily_summary.generate_summary()
+            print("\n================ DAILY CARE SUMMARY ================")
+            print(summary)
+            print("====================================================\n")
+            tts.speak("Daily care summary generated.")
         if key == ord("T"):
             tts.speak("CareAI speaker test.")
             print("Speaker test: speaking 'CareAI speaker test.'")
