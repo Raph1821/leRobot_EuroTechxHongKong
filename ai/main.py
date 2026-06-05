@@ -3,6 +3,7 @@ import multiprocessing as mp
 import queue
 import sys
 import time
+from datetime import datetime
 import cv2
 from paddleocr import PaddleOCR
 from core.event_log import EventLog
@@ -15,6 +16,17 @@ from speech.speech_listener import SpeechListener
 from assistant.llm_client import LLMClient
 
 DEBUG = True
+
+
+def _expiration_status(expiration_date: str) -> str:
+    try:
+        month, year = expiration_date.split("/")
+        now = datetime.now()
+        if (int(year), int(month)) < (now.year, now.month):
+            return "expired"
+        return "valid"
+    except Exception:
+        return "unknown"
 
 CROP_RATIO = 0.5
 MAX_CROP_WIDTH = 640
@@ -206,7 +218,10 @@ def main() -> None:
             if question:
                 context = {
                     "current_mode": current_mode.value,
-                    "scanned_medicines": state.completed_results,
+                    "scanned_medicines": [
+                        {**m, "status": _expiration_status(m.get("expiration_date", ""))}
+                        for m in state.completed_results
+                    ],
                     "recent_events": [
                         {"event_type": e.event_type, "message": e.message}
                         for e in event_log.get_all_events()[-10:]

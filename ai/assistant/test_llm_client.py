@@ -6,17 +6,17 @@ from assistant.llm_client import LLMClient
 
 context = {
     "scanned_medicines": [
-        {"medicine_name": "vitamin d", "expiration_date": "01/2026"},
-        {"medicine_name": "omega 3",   "expiration_date": "10/2026"},
+        {"medicine_name": "vitamin d", "expiration_date": "01/2026", "status": "expired"},
+        {"medicine_name": "omega 3",   "expiration_date": "10/2026", "status": "valid"},
     ],
     "recent_events": [
-        {"event_type": "medicine_scanned", "message": "Medicine scanned: vitamin d - 01/2026"},
+        {"event_type": "medicine_scanned", "message": "vitamin d - 01/2026"},
         {"event_type": "voice_emergency",  "message": "Emergency detected by voice request"},
     ],
-    "patrol_status": "normal",
+    "patrol_status": "NORMAL",
 }
 
-question = "What medicines expire soon and were there any emergencies?"
+question = "Can I use vitamin D?"
 
 client = LLMClient()
 answer = client.ask(question, context=context)

@@ -33,7 +33,11 @@ def _format_context(context: dict) -> str:
     if medicines := context.get("scanned_medicines"):
         parts.append("Scanned medicines:")
         for m in medicines:
-            parts.append(f"  - {m.get('medicine_name', '?')} (expires {m.get('expiration_date', '?')})")
+            parts.append(
+                f"  - {m.get('medicine_name', '?')}"
+                f" (expires {m.get('expiration_date', '?')},"
+                f" status: {m.get('status', 'unknown')})"
+            )
 
     if events := context.get("recent_events"):
         parts.append("Recent events:")
