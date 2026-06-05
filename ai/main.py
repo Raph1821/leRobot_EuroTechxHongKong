@@ -14,6 +14,8 @@ from sorting.medicine_name_parser import find_medicine_name
 from sorting.scan_state import MedicineScanState
 from speech.speech_listener import SpeechListener
 from assistant.llm_client import LLMClient
+from assistant.intents import classify_intent
+from assistant.assistant_actions import handle_intent, ActionResult
 
 DEBUG = True
 
@@ -216,24 +218,33 @@ def main() -> None:
             except (EOFError, KeyboardInterrupt):
                 question = ""
             if question:
-                context = {
-                    "current_mode": current_mode.value,
-                    "scanned_medicines": [
-                        {**m, "status": _expiration_status(m.get("expiration_date", ""))}
-                        for m in state.completed_results
-                    ],
-                    "recent_events": [
-                        {"event_type": e.event_type, "message": e.message}
-                        for e in event_log.get_all_events()[-10:]
-                    ],
-                    "patrol_status": patrol._emergency.phase,
-                }
+                enriched = [
+                    {**m, "status": _expiration_status(m.get("expiration_date", ""))}
+                    for m in state.completed_results
+                ]
+                events = [
+                    {"event_type": e.event_type, "message": e.message}
+                    for e in event_log.get_all_events()[-10:]
+                ]
+                intent = classify_intent(question)["intent"]
+                result: ActionResult = handle_intent(
+                    intent=intent,
+                    scanned_medicines=enriched,
+                    recent_events=events,
+                    patrol_status=patrol._emergency.phase,
+                    current_mode=current_mode.value,
+                    llm_client=llm_client,
+                    user_message=question,
+                )
                 print("\n================ CAREAI RESPONSE ================")
-                try:
-                    print(llm_client.ask(question, context=context))
-                except Exception as exc:
-                    print(f"CareAI error: {exc}")
+                print(result.message)
                 print("=================================================\n")
+                if result.switch_mode == "PATROL" and current_mode != AppMode.PATROL:
+                    current_mode = AppMode.PATROL
+                    print("Entered PATROL mode")
+                elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
+                    current_mode = AppMode.SORTING
+                    print("Entered SORTING mode")
         if key == ord("p"):
             if current_mode == AppMode.SORTING:
                 print(f"\n--- State: {state.phase} | name: {state.current_medicine_name!r} | exp: {state.current_expiration_date!r} ---")
