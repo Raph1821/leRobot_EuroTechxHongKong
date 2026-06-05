@@ -1,0 +1,36 @@
+{
+  "scanned_medicines": [
+    {
+      "name": "Aspirin",
+      "expiration_date": "2026-12-31",
+      "status": "valid",
+      "scanned_at": "2026-06-05T11:02:28.695862+00:00"
+    },
+    {
+      "name": "Ibuprofen",
+      "expiration_date": "2025-03-01",
+      "status": "expired",
+      "scanned_at": "2026-06-05T11:02:28.696162+00:00"
+    }
+  ],
+  "events": [
+    {
+      "type": "scan",
+      "message": "Scanned medicine shelf",
+      "data": {
+        "count": 2
+      },
+      "timestamp": "2026-06-05T11:02:28.696265+00:00"
+    }
+  ],
+  "emergencies": [
+    {
+      "source": "voice",
+      "message": "User said: help me",
+      "data": null,
+      "timestamp": "2026-06-05T11:02:28.696352+00:00"
+    }
+  ],
+  "medicine_schedule": [],
+  "daily_summaries": []
+}
