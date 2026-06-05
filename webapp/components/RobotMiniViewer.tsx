@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Center, Environment, OrbitControls } from "@react-three/drei";
+import { Center, OrbitControls } from "@react-three/drei";
 import RobotMini from "./RobotMini";
 import type { JointValues } from "@/lib/joints";
 
@@ -19,11 +19,11 @@ export default function RobotMiniViewer({
       <color attach="background" args={["#eceae2"]} />
       <hemisphereLight intensity={0.9} groundColor="#eceae2" color="#ffffff" />
       <directionalLight position={[2, 4, 2]} intensity={2} />
+      <directionalLight position={[-2, 2, -1]} intensity={0.7} />
       <Suspense fallback={null}>
         <Center>
           <RobotMini jointValues={jointValues} />
         </Center>
-        <Environment preset="studio" />
       </Suspense>
       <OrbitControls
         enableZoom={false}

@@ -62,13 +62,37 @@ const RobotMiniViewer = dynamic(() => import("@/components/RobotMiniViewer"), {
   ),
 });
 
+function CameraBody() {
+  const { cameraFrame } = useJoints();
+  return (
+    <div className="relative h-full min-h-[80px] overflow-hidden rounded-xl bg-ink">
+      {cameraFrame ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`data:image/${cameraFrame.encoding};base64,${cameraFrame.data}`}
+          alt="Camera preview"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
+      )}
+      <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded bg-black/40 px-2 py-0.5 text-[10px] font-medium text-paper">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${cameraFrame ? "bg-coral" : "bg-paper/40"}`}
+        />
+        {cameraFrame ? "LIVE" : "OFFLINE"}
+      </span>
+    </div>
+  );
+}
+
 function ControlBody() {
-  const { values } = useJoints();
+  const { armValues } = useJoints();
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-paper-2/60">
         <div className="absolute inset-0">
-          <RobotMiniViewer jointValues={values} />
+          <RobotMiniViewer jointValues={armValues} />
         </div>
       </div>
       <JointChips />
@@ -100,17 +124,7 @@ const CARDS: Card[] = [
     title: "Camera",
     Icon: Video,
     accent: "var(--harbour)",
-    body: (
-      <div className="relative h-full min-h-[80px] overflow-hidden rounded-xl bg-ink">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
-        <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded bg-black/40 px-2 py-0.5 text-[10px] font-medium text-paper">
-          <span className="h-1.5 w-1.5 rounded-full bg-coral" /> LIVE
-        </span>
-        <span className="absolute bottom-2 right-2 font-mono text-[10px] text-paper/60">
-          14:02:31
-        </span>
-      </div>
-    ),
+    body: <CameraBody />,
   },
   {
     id: "dose",

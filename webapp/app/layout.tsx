@@ -15,9 +15,9 @@ const body = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Robot Console · EuroTech Hong Kong Hackathon",
+  title: "Elda · Elderly care robotics",
   description:
-    "Manual control of the SO-101 care arm — part of our AI & Robotics build for the EuroTech Hong Kong Hackathon, Munich 2026.",
+    "Elda — an AI-powered robotic arm assistant for elderly care. SO-101 control, monitoring, medication and emergencies. EuroTech Hong Kong Hackathon, Munich 2026.",
 };
 
 export default function RootLayout({
