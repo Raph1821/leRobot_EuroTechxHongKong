@@ -18,7 +18,6 @@ export const NAV: NavItem[] = [
   { href: "/control", label: "Simulation & Control", icon: Bot },
   { href: "/camera", label: "Camera", icon: Video },
   { href: "/interaction", label: "Interaction", icon: MessageCircle },
-  { href: "/assistant", label: "Assistant", icon: MessageCircle },
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/medications", label: "Medications", icon: Pill },
   { href: "/reports", label: "Reports & Alerts", icon: Activity },
