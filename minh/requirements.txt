@@ -1,0 +1,25 @@
+# Merged dependencies: teammate's code + your code
+# Install with: pip install -r requirements.txt
+
+# ─── OCR & Text Matching (teammate's) ───
+paddleocr>=2.7.0
+paddlepaddle>=2.6.0
+rapidfuzz>=3.0.0             # fuzzy medicine name matching
+
+# ─── Vision / Detection (yours) ───
+ultralytics>=8.2.0           # YOLO11 for pill detection and counting
+opencv-python>=4.10.0
+
+# ─── LLM for dosage interpretation (optional, yours) ───
+transformers>=4.40.0         # for local Phi-3 / Qwen2.5
+torch>=2.0.0
+
+# ─── Robot deployment ───
+# gr00t                      # NVIDIA GR00T N1.7 (installed via Isaac GR00T)
+# lerobot                    # LeRobot SO-101 control
+# holoscan                   # NVIDIA Holoscan for real-time pipeline
+
+# ─── Utilities ───
+pyyaml>=6.0
+numpy>=1.24.0
+Pillow>=9.0.0

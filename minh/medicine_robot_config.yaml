@@ -1,0 +1,71 @@
+# Medicine Robot Configuration (MERGED)
+# Combines teammate's OCR scanning + your robot control + vision
+
+robot:
+  type: "so101_follower"
+  port: "/dev/ttyACM0"       # Update with your actual USB port
+  id: "so101_follower_arm"
+
+  cameras:
+    wrist:
+      type: "opencv"
+      index_or_path: 0
+      width: 640
+      height: 480
+      fps: 30
+    room:
+      type: "opencv"
+      index_or_path: 2
+      width: 640
+      height: 480
+      fps: 30
+
+gr00t:
+  # Task description — dynamically updated by orchestrator based on detected medicine
+  language_instruction: "Pick up the medicine and place it in the correct slot"
+  action_horizon: 8
+
+  embodiment_tag: "new_embodiment"
+  model_path: "/workspace/i4h/.cache/huggingface/so_arm_starter_gr00t"
+
+  # TensorRT acceleration (optional)
+  trt_engine_path: null
+  trt_mode: "n17_full_pipeline"
+
+# Sorting slot configuration — calibrate for your physical tray
+sorting:
+  slots:
+    A:
+      label: "Morning medications"
+      position: [0.15, 0.10, 0.05]
+    B:
+      label: "Afternoon medications"
+      position: [0.15, 0.00, 0.05]
+    C:
+      label: "Evening medications"
+      position: [0.15, -0.10, 0.05]
+    D:
+      label: "As-needed medications"
+      position: [0.25, 0.00, 0.05]
+    E:
+      label: "Expired - DO NOT USE"
+      position: [0.25, -0.10, 0.05]
+
+# Vision configuration
+vision:
+  pill_detection:
+    model_path: "yolo11n.pt"   # Replace with fine-tuned model after training
+    confidence_threshold: 0.5
+
+  dose_reading:
+    use_llm: false             # Set true to use Phi-3 for dosage interpretation
+    llm_backend: "transformers"
+    ocr_lang: "en"
+
+# OCR scanning settings (teammate's)
+scanning:
+  crop_ratio: 0.5
+  max_crop_width: 640
+  ocr_min_interval: 1.5       # seconds between OCR calls
+  no_text_min_seconds: 2.5    # seconds of no-text before declaring removal
+  no_text_min_cycles: 3

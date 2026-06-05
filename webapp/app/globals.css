@@ -1,0 +1,131 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&display=swap");
+@import "tailwindcss";
+
+/* ── Harbour Modernist — same palette as the landing ── */
+:root {
+  --paper: #f5f4ef;
+  --paper-2: #eceae2;
+  --ink: #0e1116;
+  --ink-soft: #4a4f57;
+  --hairline: #d6d3c8;
+  --coral: #ff3b53;
+  --harbour: #0e4fe0;
+  --gold: #d9a441;
+  --khaki: #5c6444;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-hairline: var(--hairline);
+  --color-coral: var(--coral);
+  --color-harbour: var(--harbour);
+  --color-gold: var(--gold);
+  --color-khaki: var(--khaki);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-cjk: "Noto Serif TC", serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  overflow: hidden;
+  background-image: radial-gradient(rgba(14, 17, 22, 0.035) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+::selection {
+  background: var(--coral);
+  color: #fff;
+}
+
+.font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+.font-cjk {
+  font-family: var(--font-cjk);
+}
+
+.rule {
+  height: 1px;
+  background: var(--hairline);
+}
+
+/* ── react-grid-layout · drop placeholder + resize handle ── */
+/* stop text/element selection while dragging or resizing */
+.react-grid-layout,
+.react-grid-item,
+.react-resizable-handle {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+.react-grid-item.react-grid-placeholder {
+  background: var(--coral) !important;
+  opacity: 0.12 !important;
+  border: 2px dashed var(--coral);
+  border-radius: 1rem;
+  transition-duration: 120ms;
+}
+.react-grid-item.react-draggable-dragging {
+  z-index: 30;
+  cursor: grabbing;
+}
+.react-grid-item.react-draggable-dragging > * {
+  box-shadow: 0 20px 60px -20px rgba(14, 17, 22, 0.45);
+  border-radius: 1rem;
+}
+/* resize handle — subtle, accent on hover */
+.react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 0.5;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--ink-soft);
+  border-bottom-color: var(--ink-soft);
+}
+
+/* range slider — coral accent on a hairline track */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hairline);
+  outline: none;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--coral);
+  border: 3px solid var(--paper);
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--coral);
+}
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--coral);
+  border: 3px solid var(--paper);
+  cursor: pointer;
+}

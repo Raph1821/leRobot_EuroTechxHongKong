@@ -1,0 +1,5 @@
+// SO-ARM101 info IDL
+struct SOARM101Info {
+    sequence<float> joints_state_positions;
+    sequence<float> joints_state_velocities;
+};

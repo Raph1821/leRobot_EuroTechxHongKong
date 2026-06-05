@@ -1,0 +1,6 @@
+// SO-ARM101 control input IDL
+struct SOARM101CtrlInput {
+    sequence<float> joint_positions;
+    sequence<float> joint_velocities;
+    sequence<float> joint_efforts;
+};
