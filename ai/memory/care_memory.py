@@ -9,6 +9,7 @@ _EMPTY: dict = {
     "emergencies": [],
     "medicine_schedule": [],
     "daily_summaries": [],
+    "briefings": [],
 }
 
 
