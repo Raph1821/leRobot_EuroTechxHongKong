@@ -17,6 +17,7 @@ from assistant.llm_client import LLMClient
 from assistant.intents import classify_intent
 from assistant.assistant_actions import handle_intent, ActionResult
 from memory.care_memory import CareMemory
+from reminders.reminder_checker import ReminderChecker
 
 DEBUG = True
 
@@ -97,13 +98,15 @@ def main() -> None:
         print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
         sys.exit(1)
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
 
     event_log = EventLog()
     memory = CareMemory()
+    reminder_checker = ReminderChecker(memory)
+    reminder_checker.start()
     llm_client = LLMClient()
 
     def on_voice_emergency(text: str) -> None:
@@ -259,6 +262,8 @@ def main() -> None:
                 elif result.switch_mode == "SORTING" and current_mode != AppMode.SORTING:
                     current_mode = AppMode.SORTING
                     print("Entered SORTING mode")
+        if key == ord("R"):
+            reminder_checker.check_now()
         if key == ord("S"):
             sid = memory.add_medicine_schedule("vitamin d", "1 tablet", ["09:00"], notes="take with food")
             print(f"Sample schedule added (id={sid}): vitamin d - 1 tablet - 09:00")
