@@ -213,7 +213,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
             rs_pipeline = None
             pill_model = None
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  3=dosage  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  D=record-dose  X=dose-history  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  3=dosage  4=explore  f=find-object  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  D=record-dose  X=dose-history  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -250,6 +250,19 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
 
     state = MedicineScanState()
     patrol = PatrolMode(debug=DEBUG, on_camera_emergency=on_camera_emergency)
+
+    # Exploration memory (semantic visual memory via CLIP) — for EXPLORATION mode.
+    exploration = None
+    try:
+        from exploration.exploration_memory import ExplorationMemory
+        exploration = ExplorationMemory()
+        if exploration.available:
+            print("Exploration memory: CLIP ready (press 4 for EXPLORATION mode).")
+        else:
+            print("Exploration memory: CLIP unavailable — install torch+transformers to enable.")
+    except Exception as e:
+        print(f"Exploration memory disabled: {e}", file=sys.stderr)
+
     crop_queue = mp.Queue(maxsize=1)
     result_queue = mp.Queue(maxsize=1)
 
@@ -292,8 +305,8 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
                 print("Entered PATROL mode")
             continue  # DOSAGE handled, skip the rest of the loop body
 
-        # SORTING uses the clear OCR webcam; PATROL uses the wrist camera if available.
-        if current_mode == AppMode.PATROL and cap_patrol is not None:
+        # SORTING uses the clear OCR webcam; PATROL and EXPLORATION use the wrist camera.
+        if current_mode in (AppMode.PATROL, AppMode.EXPLORATION) and cap_patrol is not None:
             active_cap = cap_patrol
             is_patrol_cam = True
         else:
@@ -345,6 +358,15 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
                 pass
         elif current_mode == AppMode.PATROL:
             patrol.process_frame(frame)
+        elif current_mode == AppMode.EXPLORATION:
+            if exploration is not None and exploration.available:
+                stored = exploration.observe(frame)
+                cv2.putText(frame, f"EXPLORING  memories={exploration.count}"
+                                   + ("  [+]" if stored else ""),
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 220, 120), 2)
+            else:
+                cv2.putText(frame, "EXPLORATION: CLIP unavailable",
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         try:
             cmd = voice_queue.get_nowait()
@@ -385,6 +407,12 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
                 print("Entered DOSAGE mode")
             else:
                 print("DOSAGE unavailable — run with --realsense and a connected RealSense.")
+        if key == ord("4") and current_mode != AppMode.EXPLORATION:
+            if exploration is not None and exploration.available:
+                current_mode = AppMode.EXPLORATION
+                print("Entered EXPLORATION mode — building visual memory.")
+            else:
+                print("EXPLORATION unavailable — CLIP not loaded (install torch+transformers).")
         if key == ord("r"):
             if current_mode == AppMode.SORTING:
                 state.reset_current()
@@ -398,6 +426,35 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
             speech.set_debug(DEBUG)
         if key == ord("e"):
             event_log.print_recent_events()
+        if key == ord("f"):
+            # Find an object the robot saw during EXPLORATION (always uses vision).
+            print("\n================ FIND OBJECT ================")
+            if exploration is None or not exploration.available:
+                print("Exploration memory unavailable (CLIP not loaded).")
+            elif exploration.count == 0:
+                print("No exploration memories yet. Press 4 and look around first.")
+            else:
+                print("What are you looking for?")
+                try:
+                    want = input("> ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    want = ""
+                if want:
+                    hits = exploration.query(want, top_k=4)
+                    if hits:
+                        try:
+                            answer = llm_client.look_at_many(
+                                [h.image_jpeg for h in hits], want)
+                        except Exception as ex:
+                            answer = "I found something that matches, but couldn't describe it."
+                            print(f"[vision error: {ex}]")
+                        print("\n--- CAREAI ---")
+                        print(answer)
+                        print("[matches: "
+                              + ", ".join(f"{h.obs_id}:{h.score:.2f}" for h in hits) + "]")
+                    else:
+                        print("I haven't seen anything matching that.")
+            print("=============================================\n")
         if key == ord("a"):
             print("\n================ CAREAI ASSISTANT ================")
             print("Ask CareAI:")
@@ -406,6 +463,33 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
             except (EOFError, KeyboardInterrupt):
                 question = ""
             if question:
+                # If we have exploration memories, let CLIP decide relevance:
+                # query the visual memory and, if the best match is strong enough,
+                # answer with Claude vision. Otherwise fall through to the normal
+                # care assistant. (No brittle keyword matching.)
+                explore_hits = []
+                if exploration is not None and exploration.available and exploration.count > 0:
+                    hits = exploration.query(question, top_k=4)
+                    # CLIP cross-modal scores: ~0.25+ is a confident match.
+                    if hits and hits[0].score >= 0.25:
+                        explore_hits = hits
+
+                if explore_hits:
+                    # Send the matched frames to Claude's vision so it can
+                    # describe exactly what it sees that matches the request.
+                    try:
+                        answer = llm_client.look_at_many(
+                            [h.image_jpeg for h in explore_hits], question)
+                    except Exception as e:
+                        answer = "I found something nearby that matches what you asked for."
+                        print(f"[vision error: {e}]")
+                    print("\n================ CAREAI RESPONSE ================")
+                    print(answer)
+                    print(f"[exploration matches: "
+                          + ", ".join(f"{h.obs_id}:{h.score:.2f}" for h in explore_hits) + "]")
+                    print("=================================================\n")
+                    continue
+
                 mem_ctx = memory.get_context()
                 enriched = [
                     {

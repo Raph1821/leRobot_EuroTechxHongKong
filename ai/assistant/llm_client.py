@@ -153,3 +153,83 @@ class LLMClient:
             messages=[{"role": "user", "content": full_message}],
         )
         return response.content[0].text
+
+    def look_at_many(self, images_jpeg: list[bytes], user_message: str) -> str:
+        """Answer a question about several images using Claude's vision.
+
+        images_jpeg: list of raw JPEG frames the robot saw (best matches first).
+        Lets Claude describe ALL relevant items it sees, not just one.
+        """
+        if self._disabled:
+            return "CareAI vision disabled: ANTHROPIC_API_KEY not set"
+        images_jpeg = [img for img in images_jpeg if img]
+        if not images_jpeg:
+            return self.ask(user_message)
+
+        import base64
+        content = []
+        for img in images_jpeg:
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": base64.b64encode(img).decode(),
+                },
+            })
+        content.append({"type": "text", "text": (
+            f'The user asked: "{user_message}".\n'
+            "These are snapshots of things you saw while looking around the room. "
+            "Look at them and reply in ONE or TWO short, warm sentences listing the "
+            "items that match the request, mentioning each object specifically "
+            "(type/colour). Ignore images that don't match. If none match, say you "
+            "couldn't find anything suitable."
+        )})
+
+        response = self._client.messages.create(
+            model=self._model,
+            max_tokens=400,
+            messages=[{"role": "user", "content": content}],
+        )
+        return response.content[0].text
+
+    def look_at(self, image_jpeg: bytes, user_message: str) -> str:
+        """Answer a question about an image using Claude's vision.
+
+        image_jpeg: raw JPEG bytes (e.g. a frame the robot saw during exploration).
+        user_message: the user's request, e.g. "I need something I can drink".
+        """
+        if self._disabled:
+            return "CareAI vision disabled: ANTHROPIC_API_KEY not set"
+        if not image_jpeg:
+            return self.ask(user_message)
+
+        import base64
+        b64 = base64.b64encode(image_jpeg).decode()
+        prompt = (
+            f'The user asked: "{user_message}".\n'
+            "This image is something you saw while looking around the room that "
+            "best matches their request. Look at it and reply in ONE short, warm "
+            "sentence telling them what you see that fits, mentioning the object "
+            "specifically (e.g. its type/color). If nothing in the image actually "
+            "matches, say you could not find it."
+        )
+        response = self._client.messages.create(
+            model=self._model,
+            max_tokens=300,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": b64,
+                        },
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+        return response.content[0].text
