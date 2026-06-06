@@ -63,51 +63,60 @@ export default function InteractionPage() {
     ]);
 
     try {
-      const endpoint =
-        mode === "agent" ? "/command/stream" : "/query/stream";
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: userMsg.text }),
-      });
+      if (mode === "ask") {
+        // CareAI read-only path — simple JSON request/response
+        const response = await fetch(`${API_BASE}/assistant/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMsg.text }),
+        });
+        if (!response.ok) throw new Error("API unavailable");
+        const data = await response.json();
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, text: data.answer } : m
+          )
+        );
+      } else {
+        // Agent mode — streaming path (interaction module)
+        const response = await fetch(`${API_BASE}/command/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: userMsg.text }),
+        });
+        if (!response.ok) throw new Error("API unavailable");
 
-      if (!response.ok) throw new Error("API unavailable");
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") break;
-              try {
-                const token = JSON.parse(data);
-                accumulated += token;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId ? { ...m, text: accumulated } : m
-                  )
-                );
-              } catch {
-                // non-JSON line, skip
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            for (const line of chunk.split("\n")) {
+              if (line.startsWith("data: ")) {
+                const payload = line.slice(6);
+                if (payload === "[DONE]") break;
+                try {
+                  accumulated += JSON.parse(payload);
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId ? { ...m, text: accumulated } : m
+                    )
+                  );
+                } catch { /* non-JSON line */ }
               }
             }
           }
         }
       }
     } catch {
-      // Fallback when backend is not running
       const fallback =
-        mode === "agent"
-          ? `[Agent mode] I received your command: "${userMsg.text}". The backend API is not connected yet. Once the interaction server is running (python -m uvicorn interaction.web.endpoints:app), I'll be able to execute robot commands via MCP tools.`
-          : `[Ask mode] I received your question: "${userMsg.text}". The backend API is not connected. Start the interaction server to enable live responses.`;
+        mode === "ask"
+          ? "CareAI backend is offline. Start the server: uvicorn ai.server.api_server:app --port 8000"
+          : `[Agent mode] I received your command: "${userMsg.text}". The interaction server is not connected yet.`;
 
       setMessages((prev) =>
         prev.map((m) =>

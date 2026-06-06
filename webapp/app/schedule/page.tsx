@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Pill } from "lucide-react";
 
 const API = "http://localhost:8000";
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const FALLBACK_HOURS = ["08:00", "12:00", "14:00", "18:00", "22:00"];
+const COLORS = [
+  "var(--harbour)",
+  "var(--coral)",
+  "var(--gold)",
+  "var(--khaki)",
+];
 
 type Schedule = {
   id: string;
@@ -15,86 +22,88 @@ type Schedule = {
   created_at: string;
 };
 
+function weekRange(): string {
+  const now = new Date();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  return `${fmt(mon)} – ${fmt(sun)}, ${sun.getFullYear()}`;
+}
+
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/schedule`)
       .then((r) => r.json())
-      .then((data) => {
-        setSchedules(data);
-        setOffline(false);
-      })
+      .then((data) => { setSchedules(data); setOffline(false); })
       .catch(() => setOffline(true))
       .finally(() => setLoading(false));
   }, []);
 
+  // Build sorted unique hour rows from real data; fall back to static list
+  const hours = schedules.length > 0
+    ? [...new Set(schedules.flatMap((s) => s.times))].sort()
+    : FALLBACK_HOURS;
+
+  // Map each schedule to a colour
+  const colorOf = (id: string) => COLORS[schedules.findIndex((s) => s.id === id) % COLORS.length];
+
+  // For a given (hour, day) cell: find the schedule that has that time
+  // (daily recurring → same pill in every day column)
+  const doseAt = (hour: string) =>
+    schedules.find((s) => s.times.includes(hour));
+
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-ink-soft">Medicine schedule · daily recurring</p>
-        {offline && (
-          <span className="rounded-full border border-hairline px-3 py-1 text-xs text-ink-soft">
-            backend offline
-          </span>
-        )}
+        <p className="text-sm text-ink-soft">Prescription schedule · this week</p>
+        <span className="rounded-full border border-hairline px-3 py-1 text-xs text-ink-soft">
+          {offline ? "backend offline" : weekRange()}
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-hairline bg-paper">
-        {/* header */}
-        <div className="grid grid-cols-[1fr_120px_160px] border-b border-hairline bg-paper-2/40 px-4 py-2.5 text-xs font-medium text-ink-soft">
-          <span>Medicine</span>
-          <span>Dose</span>
-          <span>Daily times</span>
+        {/* day header */}
+        <div className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-hairline bg-paper-2/40 text-xs font-medium text-ink-soft">
+          <div className="px-3 py-2.5" />
+          {DAYS.map((d) => (
+            <div key={d} className="px-3 py-2.5 text-center">{d}</div>
+          ))}
         </div>
 
         {loading && (
           <div className="px-4 py-8 text-center text-sm text-ink-soft">Loading…</div>
         )}
 
-        {!loading && (offline || schedules.length === 0) && (
-          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-            <Pill size={28} strokeWidth={1.5} className="text-ink/20" />
-            <p className="text-sm text-ink-soft">
-              {offline ? "Could not reach the CareAI backend." : "No active medicine schedules."}
-            </p>
-            {offline && (
-              <p className="text-xs text-ink-soft/60">
-                Start the server: <code className="font-mono">uvicorn ai.server.api_server:app --port 8000</code>
-              </p>
-            )}
-          </div>
-        )}
-
-        {!loading && !offline && schedules.map((s, i) => (
-          <div
-            key={s.id}
-            className={`grid grid-cols-[1fr_120px_160px] items-center px-4 py-3 ${
-              i < schedules.length - 1 ? "border-b border-hairline" : ""
-            }`}
-          >
-            <div>
-              <p className="text-sm font-medium capitalize">{s.medicine_name}</p>
-              {s.notes && (
-                <p className="mt-0.5 text-[11px] text-ink-soft">{s.notes}</p>
-              )}
-            </div>
-            <span className="text-sm text-ink-soft">{s.dose}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {s.times.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 font-mono text-[11px] font-medium text-gold"
-                >
-                  <Clock size={10} />
-                  {t}
-                </span>
+        {!loading && hours.map((h, hi) => {
+          const dose = doseAt(h);
+          return (
+            <div
+              key={h}
+              className="grid grid-cols-[64px_repeat(7,1fr)] border-b border-hairline last:border-0"
+            >
+              <div className="px-3 py-3 font-mono text-[11px] text-ink-soft">{h}</div>
+              {DAYS.map((_, di) => (
+                <div key={di} className="border-l border-hairline px-1.5 py-1.5">
+                  {dose && (
+                    <span
+                      className="block truncate rounded-md px-2 py-1 text-[11px] font-medium text-paper"
+                      style={{ backgroundColor: colorOf(dose.id) }}
+                    >
+                      {dose.medicine_name}
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

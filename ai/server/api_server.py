@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from memory.care_memory import CareMemory
 from assistant.llm_client import LLMClient
+from assistant.intents import classify_intent, SWITCH_TO_PATROL, SWITCH_TO_SORTING
 from core.shared_frame import get_latest_frame
 
 app = FastAPI(title="CareAI API", version="1.0.0")
@@ -26,6 +27,24 @@ app.add_middleware(
 
 memory = CareMemory()
 llm = LLMClient()
+
+_READ_ONLY_MSG = (
+    "This web assistant is currently read-only. "
+    "I can answer questions, but I cannot change system state yet."
+)
+_ACTION_INTENTS = {SWITCH_TO_PATROL, SWITCH_TO_SORTING}
+_ACTION_KEYWORDS = [
+    "switch to patrol", "start patrol", "patrol mode",
+    "switch to sorting", "sorting mode",
+    "delete schedule", "remove schedule", "add schedule", "create schedule",
+    "change profile", "update profile", "trigger reminder",
+]
+
+def _is_action_request(message: str) -> bool:
+    if classify_intent(message)["intent"] in _ACTION_INTENTS:
+        return True
+    text = message.lower()
+    return any(kw in text for kw in _ACTION_KEYWORDS)
 
 
 class AskIn(BaseModel):
@@ -151,6 +170,8 @@ def camera_snapshot():
 
 @app.post("/assistant/ask")
 def assistant_ask(body: AskIn):
+    if _is_action_request(body.message):
+        return {"answer": _READ_ONLY_MSG}
     _fresh()
     context = memory.get_context()
     try:
