@@ -25,7 +25,20 @@ def _ensure_model() -> Path:
         print(f"Downloading pose model to {_MODEL_PATH} …")
         urllib.request.urlretrieve(_MODEL_URL, _MODEL_PATH)
         print("Download complete.")
-    return _MODEL_PATH
+    # MediaPipe's C library can't handle Unicode paths (e.g. Vietnamese chars).
+    # Copy to a simple temp path if the original contains non-ASCII characters.
+    path_str = str(_MODEL_PATH)
+    try:
+        path_str.encode("ascii")
+        return _MODEL_PATH
+    except UnicodeEncodeError:
+        import shutil, tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "carebot_models"
+        temp_dir.mkdir(exist_ok=True)
+        temp_path = temp_dir / "pose_landmarker_lite.task"
+        if not temp_path.exists():
+            shutil.copy2(_MODEL_PATH, temp_path)
+        return temp_path
 
 
 class PatrolMode:

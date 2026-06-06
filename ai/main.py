@@ -1,10 +1,16 @@
 import argparse
 import logging
 import multiprocessing as mp
+import os
 import queue
 import sys
 import time
 from datetime import datetime
+
+# Fix PaddlePaddle oneDNN crash on Windows
+os.environ.setdefault("PADDLE_INFERENCE_DISABLE_ONEDNN", "1")
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+
 import cv2
 from paddleocr import PaddleOCR
 from core.event_log import EventLog
@@ -68,8 +74,18 @@ def _put_latest(q: mp.Queue, item) -> None:
 
 
 def _ocr_worker(crop_queue: mp.Queue, result_queue: mp.Queue) -> None:
+    # Must set these in the subprocess too (Windows spawns a fresh process)
+    import os
+    os.environ["PADDLE_INFERENCE_DISABLE_ONEDNN"] = "1"
+    os.environ["FLAGS_use_mkldnn"] = "0"
+
     logging.getLogger("ppocr").setLevel(logging.ERROR)
-    ocr = PaddleOCR(use_textline_orientation=True, lang="en")
+    # enable_mkldnn=False avoids the PIR+oneDNN crash on Windows
+    try:
+        ocr = PaddleOCR(use_textline_orientation=True, lang="en", enable_mkldnn=False)
+    except TypeError:
+        # Older/newer API fallback
+        ocr = PaddleOCR(use_textline_orientation=True, lang="en")
     last_text = None
 
     while True:
@@ -98,20 +114,36 @@ def _ocr_worker(crop_queue: mp.Queue, result_queue: mp.Queue) -> None:
             time.sleep(remaining)
 
 
-def main(camera_index: int = 1) -> None:
+def main(camera_index: int = 0) -> None:
     global DEBUG
-    # Use AVFoundation explicitly so the index matches:
-    #   [0] FaceTime HD Camera  [1] Logitech StreamCam
-    cap = cv2.VideoCapture(camera_index, cv2.CAP_AVFOUNDATION)
+    # Platform-agnostic camera open
+    # On macOS with multiple cameras, use index 1 for external (e.g. Logitech)
+    # On Windows/Linux, external USB camera is typically index 0
+    import platform
+    if platform.system() == "Darwin":
+        # macOS: use AVFoundation backend, default to external cam (index 1)
+        if camera_index == 0:
+            camera_index = 1  # skip FaceTime, use external
+        cap = cv2.VideoCapture(camera_index, cv2.CAP_AVFOUNDATION)
+    else:
+        # Windows/Linux: default backend
+        cap = cv2.VideoCapture(camera_index)
+
     if not cap.isOpened():
-        print(f"Error: could not open camera {camera_index}. Check connection and macOS camera permissions.", file=sys.stderr)
-        sys.exit(1)
+        print(f"Error: could not open camera {camera_index}. Check that the camera is connected.", file=sys.stderr)
+        # Try fallback index
+        fallback = 1 if camera_index == 0 else 0
+        print(f"Trying fallback camera index {fallback}...", file=sys.stderr)
+        cap = cv2.VideoCapture(fallback)
+        if not cap.isOpened():
+            print("Failed. No camera available.", file=sys.stderr)
+            sys.exit(1)
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    camera_label = "Logitech StreamCam" if camera_index == 1 else "FaceTime HD Camera" if camera_index == 0 else f"Camera {camera_index}"
+    camera_label = f"Camera {camera_index}"
     print(f"Using: {camera_label} ({actual_w}x{actual_h})")
 
     print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
