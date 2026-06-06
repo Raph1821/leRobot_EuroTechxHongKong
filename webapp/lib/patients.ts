@@ -38,8 +38,8 @@ export type Patient = {
 
 export const PATIENTS: Patient[] = [
   {
-    id: "margarethe-keller",
-    name: "Margarethe Keller",
+    id: "mei-ling-chan",
+    name: "Mei-Ling Chan",
     age: 84,
     address: "Schwabing, München",
     status: "live",
@@ -73,8 +73,8 @@ export const PATIENTS: Patient[] = [
     notes: ["Prefers reminders in the morning."],
   },
   {
-    id: "heinz-brandt",
-    name: "Heinz Brandt",
+    id: "wei-zhang",
+    name: "Wei Zhang",
     age: 79,
     address: "Sendling, München",
     status: "stable",
@@ -97,8 +97,8 @@ export const PATIENTS: Patient[] = [
     notes: [],
   },
   {
-    id: "ilse-hoffmann",
-    name: "Ilse Hoffmann",
+    id: "sakura-tanaka",
+    name: "Sakura Tanaka",
     age: 88,
     address: "Pasing, München",
     status: "attention",
@@ -123,8 +123,8 @@ export const PATIENTS: Patient[] = [
     notes: ["Follow-up call scheduled."],
   },
   {
-    id: "karl-maier",
-    name: "Karl Maier",
+    id: "jin-ho-park",
+    name: "Jin-Ho Park",
     age: 81,
     address: "Giesing, München",
     status: "stable",

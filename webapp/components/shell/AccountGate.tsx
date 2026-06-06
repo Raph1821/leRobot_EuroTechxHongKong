@@ -19,11 +19,8 @@ export default function AccountGate({ children }: { children: React.ReactNode })
     <div className="grid h-screen place-items-center bg-paper text-ink">
       <div className="w-full max-w-sm px-6">
         <div className="mb-8 text-center">
-          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-ink text-lg font-bold text-paper">
-            E
-          </span>
-          <h1 className="font-display mt-4 text-2xl font-extrabold tracking-tight">
-            Elda
+          <h1 className="font-logo text-[120px] leading-none">
+            ELDA
           </h1>
           <p className="mt-1 text-sm text-ink-soft">Choose an account to continue</p>
         </div>

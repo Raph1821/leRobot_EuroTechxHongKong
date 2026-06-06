@@ -23,7 +23,7 @@ export default function EmergencyMap({
   return (
     <MapContainer
       center={[home.lat, home.lon]}
-      zoom={13}
+      zoom={11}
       scrollWheelZoom
       className="h-full w-full"
     >

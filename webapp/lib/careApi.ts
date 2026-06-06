@@ -76,6 +76,24 @@ export const askAssistant = (message: string) =>
     body: JSON.stringify({ message }),
   });
 
+/** "2026-06-05T11:02:28.695862+00:00" → "today 13:02" / "5 min ago" / "5 Jun · 13:02" */
+export function humanTime(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const now = new Date();
+  const min = Math.floor((now.getTime() - d.getTime()) / 60000);
+  if (min >= 0 && min < 1) return "just now";
+  if (min >= 0 && min < 60) return `${min} min ago`;
+  const h12 = d.getHours() % 12 || 12;
+  const hm = `${h12}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`;
+  if (d.toDateString() === now.toDateString()) return `today at ${hm}`;
+  const yest = new Date(now);
+  yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) return `yesterday at ${hm}`;
+  return `${d.getDate()} ${d.toLocaleString("en", { month: "short" })} at ${hm}`;
+}
+
 /** Poll a CareAI endpoint; `online=false` → caller shows its mock fallback. */
 export function usePoll<T>(fn: () => Promise<T>, ms = 8000) {
   const [data, setData] = useState<T | null>(null);
