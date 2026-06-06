@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 
@@ -6,10 +7,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from memory.care_memory import CareMemory
 from assistant.llm_client import LLMClient
+from core.shared_frame import get_latest_frame
 
 app = FastAPI(title="CareAI API", version="1.0.0")
 
@@ -93,6 +96,34 @@ def schedule_delete(schedule_id: str):
     if not removed:
         raise HTTPException(status_code=404, detail="Schedule not found")
     return {"success": True, "schedule_id": schedule_id}
+
+
+@app.get("/camera/stream")
+async def camera_stream():
+    async def generate():
+        while True:
+            frame = get_latest_frame()
+            if frame:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + frame
+                    + b"\r\n"
+                )
+            await asyncio.sleep(1 / 15)  # 15 fps cap
+
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/camera/snapshot")
+def camera_snapshot():
+    frame = get_latest_frame()
+    if frame is None:
+        raise HTTPException(status_code=503, detail="No frame available yet")
+    return Response(content=frame, media_type="image/jpeg")
 
 
 @app.post("/assistant/ask")

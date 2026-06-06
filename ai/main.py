@@ -8,6 +8,7 @@ from datetime import datetime
 import cv2
 from paddleocr import PaddleOCR
 from core.event_log import EventLog
+from core.shared_frame import set_latest_frame
 from core.modes import AppMode
 from patrol.patrol_mode import PatrolMode
 from sorting.expiration_date_parser import parse_expiration_date
@@ -160,6 +161,7 @@ def main(camera_index: int = 1) -> None:
         if not ret:
             print("Error: failed to read frame from camera.", file=sys.stderr)
             break
+        set_latest_frame(frame)
 
         if current_mode == AppMode.SORTING:
             _put_latest(crop_queue, _center_crop(frame))

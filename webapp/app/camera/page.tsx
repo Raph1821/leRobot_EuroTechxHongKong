@@ -1,24 +1,29 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Maximize2, Camera as Cam, Crosshair } from "lucide-react";
-import { useJoints } from "@/lib/jointStore";
+
+const STREAM_URL = "http://localhost:8000/camera/stream";
+const SNAPSHOT_URL = "http://localhost:8000/camera/snapshot";
 
 export default function CameraPage() {
-  const { cameraFrame, status } = useJoints();
   const frameRef = useRef<HTMLDivElement>(null);
+  const [live, setLive] = useState(false);
 
-  const live = !!cameraFrame;
-  const src = cameraFrame
-    ? `data:image/${cameraFrame.encoding};base64,${cameraFrame.data}`
-    : "";
-
-  const snapshot = () => {
-    if (!src) return;
-    const a = document.createElement("a");
-    a.href = src;
-    a.download = `elda-snapshot.${cameraFrame!.encoding}`;
-    a.click();
+  const snapshot = async () => {
+    if (!live) return;
+    try {
+      const res = await fetch(SNAPSHOT_URL);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "careai-snapshot.jpg";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // stream offline
+    }
   };
 
   const fullscreen = () => {
@@ -34,11 +39,19 @@ export default function CameraPage() {
         ref={frameRef}
         className="relative h-full overflow-hidden rounded-2xl border border-hairline bg-ink"
       >
-        {live ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="Robot camera" className="h-full w-full object-cover" />
-        ) : (
-          <>
+        {/* Always keep the img in the DOM so the MJPEG connection stays alive */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={STREAM_URL}
+          alt="Robot camera"
+          className="h-full w-full object-cover"
+          onLoad={() => setLive(true)}
+          onError={() => setLive(false)}
+        />
+
+        {/* Offline overlay — covers the img when stream is not yet live */}
+        {!live && (
+          <div className="absolute inset-0 bg-ink">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.08),transparent_65%)]" />
             <Crosshair
               size={48}
@@ -46,9 +59,9 @@ export default function CameraPage() {
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-paper/25"
             />
             <span className="absolute left-1/2 top-[58%] -translate-x-1/2 text-xs uppercase tracking-[0.2em] text-paper/40">
-              {status === "online" ? "Waiting for stream…" : "No signal · bridge offline"}
+              No signal · backend offline
             </span>
-          </>
+          </div>
         )}
 
         {/* hud */}
@@ -60,7 +73,7 @@ export default function CameraPage() {
         </span>
         {live && (
           <span className="absolute right-3 top-3 font-mono text-[11px] text-paper/60">
-            {cameraFrame.width}×{cameraFrame.height}
+            1920×1080
           </span>
         )}
 

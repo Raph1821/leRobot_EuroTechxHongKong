@@ -63,24 +63,25 @@ const RobotMiniViewer = dynamic(() => import("@/components/RobotMiniViewer"), {
 });
 
 function CameraBody() {
-  const { cameraFrame } = useJoints();
+  const [live, setLive] = useState(false);
   return (
     <div className="relative h-full min-h-[80px] overflow-hidden rounded-xl bg-ink">
-      {cameraFrame ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`data:image/${cameraFrame.encoding};base64,${cameraFrame.data}`}
-          alt="Camera preview"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="http://localhost:8000/camera/stream"
+        alt="Camera preview"
+        className="h-full w-full object-cover"
+        onLoad={() => setLive(true)}
+        onError={() => setLive(false)}
+      />
+      {!live && (
+        <div className="absolute inset-0 bg-ink bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
       )}
       <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded bg-black/40 px-2 py-0.5 text-[10px] font-medium text-paper">
         <span
-          className={`h-1.5 w-1.5 rounded-full ${cameraFrame ? "bg-coral" : "bg-paper/40"}`}
+          className={`h-1.5 w-1.5 rounded-full ${live ? "bg-coral" : "bg-paper/40"}`}
         />
-        {cameraFrame ? "LIVE" : "OFFLINE"}
+        {live ? "LIVE" : "OFFLINE"}
       </span>
     </div>
   );
