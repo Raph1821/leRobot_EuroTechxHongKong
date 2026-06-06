@@ -43,10 +43,75 @@
       "timestamp": "2026-06-06T10:56:06.853116+00:00"
     },
     {
-      "type": "voice_emergency",
-      "message": "Heard: \"i'm going to be doing something to help you out.\"",
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
       "data": null,
-      "timestamp": "2026-06-06T14:59:55.688628+00:00"
+      "timestamp": "2026-06-06T15:12:48.160187+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:13:31.851143+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:13:53.928918+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:14:43.195807+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:24:34.376104+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:25:09.111277+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:25:30.103138+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T16:03:32.641019+00:00"
+    },
+    {
+      "type": "health_check",
+      "message": "User reported: I feel dizzy",
+      "data": null,
+      "timestamp": "2026-06-06T16:14:14.214947+00:00"
+    },
+    {
+      "type": "health_concern",
+      "message": "Concern keywords detected: dizzy",
+      "data": {
+        "keywords": [
+          "dizzy"
+        ],
+        "user_input": "I feel dizzy"
+      },
+      "timestamp": "2026-06-06T16:14:14.216949+00:00"
+    },
+    {
+      "type": "camera_emergency",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T18:18:46.905123+00:00"
     }
   ],
   "emergencies": [
@@ -63,12 +128,58 @@
       "timestamp": "2026-06-05T11:08:01.452091+00:00"
     },
     {
-      "source": "voice",
-      "message": "Emergency detected by voice: \"i'm going to be doing something to help you out.\"",
-      "data": {
-        "heard": "i'm going to be doing something to help you out."
-      },
-      "timestamp": "2026-06-06T14:59:55.687851+00:00"
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:12:48.158186+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:13:31.850141+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:13:53.927918+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:14:43.194808+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:24:34.374103+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:25:09.110277+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T15:25:30.102138+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T16:03:32.639017+00:00"
+    },
+    {
+      "source": "camera",
+      "message": "Emergency detected by fall detection",
+      "data": null,
+      "timestamp": "2026-06-06T18:18:46.903122+00:00"
     }
   ],
   "medicine_schedule": [
@@ -92,92 +203,6 @@
     "caregiver_name": "",
     "caregiver_contact": "",
     "reminder_voice_enabled": true,
-    "notes": [],
-    "baseline": {
-      "daily_interactions": 0.2,
-      "weekly_health_concerns": 0.0,
-      "weekly_emergencies": 1.0,
-      "weekly_voice_help_requests": 1.0,
-      "weekly_missed_reminders": 0.0,
-      "last_updated": "2026-06-06T14:32:03.016266+00:00"
-    }
-  },
-  "wellbeing_reports": [
-    {
-      "risk_level": "HIGH_RISK",
-      "score": 60,
-      "summary": "Current wellbeing status is HIGH_RISK. CareAI noticed: 2 voice emergency requests detected; 2 expired medicines on record. Please contact a caregiver or healthcare professional promptly.",
-      "reasons": [
-        "2 voice emergency requests detected",
-        "2 expired medicines on record"
-      ],
-      "created_at": "2026-06-06T14:26:31.506617+00:00"
-    },
-    {
-      "risk_level": "HIGH_RISK",
-      "score": 60,
-      "summary": "Current wellbeing status is HIGH_RISK. CareAI noticed: 2 voice emergency requests detected; 2 expired medicines on record. Please contact a caregiver or healthcare professional promptly.",
-      "reasons": [
-        "2 voice emergency requests detected",
-        "2 expired medicines on record"
-      ],
-      "created_at": "2026-06-06T14:28:43.006988+00:00"
-    }
-  ],
-  "dose_history": [
-    {
-      "id": "a1b2c3d4",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-05-31T09:05:00+00:00",
-      "source": "manual"
-    },
-    {
-      "id": "b2c3d4e5",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-06-01T09:08:00+00:00",
-      "source": "manual"
-    },
-    {
-      "id": "c3d4e5f6",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-06-02T09:03:00+00:00",
-      "source": "manual"
-    },
-    {
-      "id": "d4e5f6a7",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-06-03T09:11:00+00:00",
-      "source": "manual"
-    },
-    {
-      "id": "e5f6a7b8",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-06-05T09:02:00+00:00",
-      "source": "manual"
-    },
-    {
-      "id": "f6a7b8c9",
-      "medicine_name": "vitamin d",
-      "dose": "1 tablet",
-      "scheduled_time": "09:00",
-      "status": "taken",
-      "recorded_at": "2026-06-06T09:07:00+00:00",
-      "source": "manual"
-    }
-  ]
+    "notes": []
+  }
 }

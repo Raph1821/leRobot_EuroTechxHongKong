@@ -115,39 +115,122 @@ def _ocr_worker(crop_queue: mp.Queue, result_queue: mp.Queue) -> None:
             time.sleep(remaining)
 
 
-def main(camera_index: int = 0) -> None:
-    global DEBUG
-    # Platform-agnostic camera open
-    # On macOS with multiple cameras, use index 1 for external (e.g. Logitech)
-    # On Windows/Linux, external USB camera is typically index 0
+def _open_camera(index: int, width: int = 1920, height: int = 1080):
+    """Open a camera by index, platform-agnostic. Returns (cap, label) or (None, msg).
+
+    Includes a warm-up: some USB cameras (e.g. the HBV wrist cam) return black
+    frames for the first ~1s, so we grab a few frames until a real one arrives.
+    """
     import platform
-    if platform.system() == "Darwin":
-        # macOS: use AVFoundation backend, default to external cam (index 1)
-        if camera_index == 0:
-            camera_index = 1  # skip FaceTime, use external
-        cap = cv2.VideoCapture(camera_index, cv2.CAP_AVFOUNDATION)
+    system = platform.system()
+    if system == "Darwin":
+        cap = cv2.VideoCapture(index, cv2.CAP_AVFOUNDATION)
+    elif system == "Windows":
+        # DirectShow is far more reliable than the default MSMF backend on Windows
+        # (MSMF fails to grab frames from many USB cameras).
+        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(index)  # fallback to default
     else:
-        # Windows/Linux: default backend
-        cap = cv2.VideoCapture(camera_index)
+        cap = cv2.VideoCapture(index)
 
     if not cap.isOpened():
-        print(f"Error: could not open camera {camera_index}. Check that the camera is connected.", file=sys.stderr)
-        # Try fallback index
-        fallback = 1 if camera_index == 0 else 0
-        print(f"Trying fallback camera index {fallback}...", file=sys.stderr)
-        cap = cv2.VideoCapture(fallback)
-        if not cap.isOpened():
-            print("Failed. No camera available.", file=sys.stderr)
-            sys.exit(1)
+        return None, f"could not open camera {index}"
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    camera_label = f"Camera {camera_index}"
-    print(f"Using: {camera_label} ({actual_w}x{actual_h})")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    aw = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    ah = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    return cap, f"Camera {index} ({aw}x{ah})"
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  D=record-dose  X=dose-history  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
+
+def _rotate_frame(frame, rotate: int):
+    """Rotate a frame by 0/90/180/270 degrees to correct a mismounted camera."""
+    if rotate == 90:
+        return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    if rotate == 180:
+        return cv2.rotate(frame, cv2.ROTATE_180)
+    if rotate == 270:
+        return cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    return frame
+
+
+def _letterbox(frame, target_w: int = 1280, target_h: int = 720):
+    """Fit a frame into a fixed target size preserving aspect ratio (black bars).
+
+    Keeps a consistent landscape window even when the frame is rotated to
+    portrait — no stretching/distortion.
+    """
+    import numpy as np
+    h, w = frame.shape[:2]
+    scale = min(target_w / w, target_h / h)
+    nw, nh = int(w * scale), int(h * scale)
+    resized = cv2.resize(frame, (nw, nh))
+    canvas = np.zeros((target_h, target_w, 3), dtype=frame.dtype)
+    x = (target_w - nw) // 2
+    y = (target_h - nh) // 2
+    canvas[y:y + nh, x:x + nw] = resized
+    return canvas
+
+
+def main(ocr_camera: int = 1, patrol_camera: int | None = None,
+         ocr_rotate: int = 0, patrol_rotate: int = 0,
+         use_realsense: bool = False, expected_pills: int | None = None) -> None:
+    """Run the CareAI loop.
+
+    Three-camera setup (full hackathon plan):
+      - ocr_camera:    clear webcam → medicine identification + expiration (SORTING mode)
+      - patrol_camera: wrist camera → patrol + fall detection (PATROL mode)
+      - RealSense:     overhead → pill counting / dose verification (DOSAGE mode)
+
+    Rotation (0/90/180/270) corrects a physically mismounted camera.
+    If patrol_camera is None, the same camera is used for both (single-cam fallback).
+    """
+    global DEBUG
+
+    # Open the OCR/medicine camera (the clear webcam)
+    cap_ocr, label_ocr = _open_camera(ocr_camera)
+    if cap_ocr is None:
+        print(f"Error: {label_ocr}. Check the webcam connection.", file=sys.stderr)
+        sys.exit(1)
+    print(f"OCR/medicine camera: {label_ocr}")
+
+    # Open the patrol camera (the wrist camera), if a separate one is given
+    cap_patrol = None
+    if patrol_camera is not None and patrol_camera != ocr_camera:
+        cap_patrol, label_patrol = _open_camera(patrol_camera, width=1280, height=720)
+        if cap_patrol is None:
+            print(f"Warning: {label_patrol}. Patrol will fall back to the OCR camera.", file=sys.stderr)
+            cap_patrol = None
+        else:
+            print(f"Patrol/fall-detection camera: {label_patrol}")
+    else:
+        print("Single-camera mode: same camera used for both sorting and patrol.")
+
+    # Set up the RealSense + pill detector (DOSAGE mode), if requested.
+    rs_pipeline = None
+    pill_model = None
+    if use_realsense:
+        try:
+            import pyrealsense2 as rs
+            from pill_detect_yolo import load_model, detect_pills, draw, _BATCH  # noqa
+            rs_ctx = rs.context()
+            if len(rs_ctx.query_devices()) == 0:
+                print("Warning: RealSense requested but none detected. DOSAGE mode disabled.", file=sys.stderr)
+            else:
+                rs_pipeline = rs.pipeline()
+                rs_config = rs.config()
+                rs_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+                rs_pipeline.start(rs_config)
+                pill_model = load_model()
+                dev = rs_ctx.query_devices()[0]
+                print(f"DOSAGE camera: {dev.get_info(rs.camera_info.name)} + pills YOLO model")
+        except Exception as e:
+            print(f"Warning: could not start RealSense/pill model: {e}. DOSAGE mode disabled.", file=sys.stderr)
+            rs_pipeline = None
+            pill_model = None
+
+    print("Camera opened. Keys: 1=sorting  2=patrol  3=dosage  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  D=record-dose  X=dose-history  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -191,10 +274,55 @@ def main(camera_index: int = 0) -> None:
     proc.start()
 
     while True:
-        ret, frame = cap.read()
+        # DOSAGE uses the RealSense; SORTING uses the OCR webcam; PATROL the wrist cam.
+        if current_mode == AppMode.DOSAGE and rs_pipeline is not None:
+            import pyrealsense2 as rs
+            rs_frames = rs_pipeline.wait_for_frames()
+            cf = rs_frames.get_color_frame()
+            if not cf:
+                continue
+            import numpy as _np
+            frame = _np.asanyarray(cf.get_data())
+            set_latest_frame(frame)
+
+            from pill_detect_yolo import detect_pills, draw
+            dets = detect_pills(pill_model, frame, conf=0.4)
+            frame, counts = draw(frame, dets)
+            total = len(dets)
+            cv2.putText(frame, f"PILLS: {total}  (tab {counts.get('tablets',0)} / cap {counts.get('capsules',0)})",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
+            if expected_pills is not None:
+                ok = total == expected_pills
+                cv2.putText(frame, f"Expected {expected_pills} -> {'OK' if ok else 'MISMATCH'}",
+                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 200, 0) if ok else (0, 0, 255), 2)
+
+            cv2.imshow("Carebot AI - Live Feed", frame)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
+            if key == ord("1"):
+                current_mode = AppMode.SORTING
+                print("Entered SORTING mode")
+            if key == ord("2"):
+                current_mode = AppMode.PATROL
+                print("Entered PATROL mode")
+            continue  # DOSAGE handled, skip the rest of the loop body
+
+        # SORTING uses the clear OCR webcam; PATROL uses the wrist camera if available.
+        if current_mode == AppMode.PATROL and cap_patrol is not None:
+            active_cap = cap_patrol
+            rotate = patrol_rotate
+        else:
+            active_cap = cap_ocr
+            rotate = ocr_rotate if active_cap is cap_ocr else patrol_rotate
+
+        ret, frame = active_cap.read()
         if not ret:
             print("Error: failed to read frame from camera.", file=sys.stderr)
             break
+        if rotate:
+            frame = _rotate_frame(frame, rotate)
         set_latest_frame(frame)
 
         if current_mode == AppMode.SORTING:
@@ -257,7 +385,10 @@ def main(camera_index: int = 0) -> None:
         except queue.Empty:
             pass
 
-        cv2.imshow("Carebot AI - Live Feed", frame)
+        # Letterbox the display to a consistent landscape window (no distortion).
+        # Detection still uses the full-resolution `frame`; this only affects the view.
+        display_frame = _letterbox(frame) if rotate in (90, 270) else frame
+        cv2.imshow("Carebot AI - Live Feed", display_frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
@@ -267,6 +398,12 @@ def main(camera_index: int = 0) -> None:
         if key == ord("2") and current_mode != AppMode.PATROL:
             current_mode = AppMode.PATROL
             print("Entered PATROL mode")
+        if key == ord("3") and current_mode != AppMode.DOSAGE:
+            if rs_pipeline is not None:
+                current_mode = AppMode.DOSAGE
+                print("Entered DOSAGE mode")
+            else:
+                print("DOSAGE unavailable — run with --realsense and a connected RealSense.")
         if key == ord("r"):
             if current_mode == AppMode.SORTING:
                 state.reset_current()
@@ -444,13 +581,40 @@ def main(camera_index: int = 0) -> None:
                 patrol.print_debug_state()
 
     proc.terminate()
-    cap.release()
+    cap_ocr.release()
+    if cap_patrol is not None:
+        cap_patrol.release()
+    if rs_pipeline is not None:
+        try:
+            rs_pipeline.stop()
+        except Exception:
+            pass
     cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     parser = argparse.ArgumentParser(description="CareAI — Medicine & Care Assistant")
-    parser.add_argument("--camera", type=int, default=1, help="Camera index (default: 1 = Logitech)")
+    parser.add_argument("--ocr-camera", type=int, default=1,
+                        help="Camera index for medicine ID + expiration (clear webcam). Default: 1")
+    parser.add_argument("--patrol-camera", type=int, default=None,
+                        help="Camera index for patrol + fall detection (wrist camera). "
+                             "If omitted, the OCR camera is used for both.")
+    parser.add_argument("--ocr-rotate", type=int, default=0, choices=[0, 90, 180, 270],
+                        help="Rotate the OCR camera frame to correct mounting (degrees).")
+    parser.add_argument("--patrol-rotate", type=int, default=270, choices=[0, 90, 180, 270],
+                        help="Rotate the patrol/wrist camera frame to correct mounting (degrees). "
+                             "Default 270 — the wrist camera is mounted rotated on our SO-101.")
+    # Backward-compat: --camera still works as the OCR camera
+    parser.add_argument("--camera", type=int, default=None,
+                        help="(deprecated) alias for --ocr-camera")
+    parser.add_argument("--realsense", action="store_true",
+                        help="Enable DOSAGE mode (Intel RealSense + pill counting). Press 3 to use it.")
+    parser.add_argument("--expected-pills", type=int, default=None,
+                        help="Prescribed pill count to verify against in DOSAGE mode.")
     args = parser.parse_args()
-    main(camera_index=args.camera)
+
+    ocr_cam = args.camera if args.camera is not None else args.ocr_camera
+    main(ocr_camera=ocr_cam, patrol_camera=args.patrol_camera,
+         ocr_rotate=args.ocr_rotate, patrol_rotate=args.patrol_rotate,
+         use_realsense=args.realsense, expected_pills=args.expected_pills)
