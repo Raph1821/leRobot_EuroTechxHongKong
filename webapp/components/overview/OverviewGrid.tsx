@@ -11,6 +11,7 @@ import {
   Bot,
   Video,
   CalendarDays,
+  Clock,
   Pill,
   Activity,
   TriangleAlert,
@@ -88,6 +89,65 @@ function CameraBody() {
           className={`h-1.5 w-1.5 rounded-full ${live ? "bg-coral" : "bg-paper/40"}`}
         />
         {live ? "LIVE" : "OFFLINE"}
+      </span>
+    </div>
+  );
+}
+
+type NextDose = { has_next: false } | { has_next: true; medicine_name: string; dose: string; time: string; notes: string };
+
+function minutesUntil(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  return Math.round((target.getTime() - now.getTime()) / 60000);
+}
+
+function formatCountdown(mins: number): string {
+  if (mins < 60) return `in ${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+}
+
+function NextDoseBody() {
+  const [data, setData] = useState<NextDose | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/schedule/next")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData({ has_next: false }));
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="flex h-full items-center">
+        <span className="text-sm text-ink-soft">Loading…</span>
+      </div>
+    );
+  }
+
+  if (!data.has_next) {
+    return (
+      <div className="flex h-full flex-col justify-center">
+        <Clock size={20} strokeWidth={1.5} className="mb-1 text-ink/25" />
+        <span className="text-sm text-ink-soft">No doses scheduled</span>
+      </div>
+    );
+  }
+
+  const mins = minutesUntil(data.time);
+  return (
+    <div className="flex h-full flex-col justify-center">
+      <span className="font-display text-3xl font-extrabold tracking-tight">{data.time}</span>
+      <span className="mt-1 text-sm text-ink-soft capitalize">
+        {data.medicine_name} · {data.dose}
+      </span>
+      <span className="mt-2 inline-flex w-fit rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-medium text-gold">
+        {formatCountdown(mins)}
       </span>
     </div>
   );
@@ -211,15 +271,7 @@ const CARDS: Card[] = [
     title: "Next Dose",
     Icon: CalendarDays,
     accent: "var(--gold)",
-    body: (
-      <div className="flex h-full flex-col justify-center">
-        <span className="font-display text-3xl font-extrabold tracking-tight">14:00</span>
-        <span className="mt-1 text-sm text-ink-soft">Aspirin · 100mg · 1 pill</span>
-        <span className="mt-2 inline-flex w-fit rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-medium text-gold">
-          in 58 min
-        </span>
-      </div>
-    ),
+    body: <NextDoseBody />,
   },
   {
     id: "meds",

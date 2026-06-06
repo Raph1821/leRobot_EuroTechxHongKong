@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Allow imports from ai/ when running via uvicorn from repo root
@@ -73,7 +74,29 @@ def events():
 
 @app.get("/schedule")
 def schedule_list():
-    return _fresh().get("medicine_schedule", [])
+    all_schedules = _fresh().get("medicine_schedule", [])
+    return [s for s in all_schedules if s.get("active", True)]
+
+
+@app.get("/schedule/next")
+def schedule_next():
+    _fresh()
+    active = [s for s in memory._data.get("medicine_schedule", []) if s.get("active")]
+    candidates = [(t, s) for s in active for t in s.get("times", [])]
+    if not candidates:
+        return {"has_next": False}
+
+    now_hhmm = datetime.now().strftime("%H:%M")
+    future = [(t, s) for t, s in candidates if t > now_hhmm]
+    t, s = min(future, key=lambda x: x[0]) if future else min(candidates, key=lambda x: x[0])
+
+    return {
+        "has_next": True,
+        "medicine_name": s["medicine_name"],
+        "dose": s["dose"],
+        "time": t,
+        "notes": s.get("notes", ""),
+    }
 
 
 @app.post("/schedule")
