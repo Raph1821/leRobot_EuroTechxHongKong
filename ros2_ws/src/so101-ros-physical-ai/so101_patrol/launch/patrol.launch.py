@@ -74,15 +74,15 @@ def generate_launch_description():
         DeclareLaunchArgument("home_wrist_roll",       default_value="-0.0276"),
         DeclareLaunchArgument("home_gripper",          default_value="0.0046"),
 
-        # ---- Rest pose --------------------------------------------------- #
+        # ---- Reset pose -------------------------------------------------- #
         # Arm returns here smoothly when you press Ctrl+C.
-        DeclareLaunchArgument("use_rest_pose",         default_value="true"),
-        DeclareLaunchArgument("rest_shoulder_pan",     default_value="0.0046"),
-        DeclareLaunchArgument("rest_shoulder_lift",    default_value="-1.8316"),
-        DeclareLaunchArgument("rest_elbow_flex",       default_value="1.6567"),
-        DeclareLaunchArgument("rest_wrist_flex",       default_value="1.1658"),
-        DeclareLaunchArgument("rest_wrist_roll",       default_value="-0.0123"),
-        DeclareLaunchArgument("rest_gripper",          default_value="0.4357"),
+        DeclareLaunchArgument("use_reset_pose",         default_value="true"),
+        DeclareLaunchArgument("reset_shoulder_pan",     default_value="-0.0844"),
+        DeclareLaunchArgument("reset_shoulder_lift",    default_value="-1.8270"),
+        DeclareLaunchArgument("reset_elbow_flex",       default_value="1.6659"),
+        DeclareLaunchArgument("reset_wrist_flex",       default_value="1.1612"),
+        DeclareLaunchArgument("reset_wrist_roll",       default_value="0.0614"),
+        DeclareLaunchArgument("reset_gripper",          default_value="0.0015"),
     ]
 
     patrol_node = Node(
@@ -107,13 +107,13 @@ def generate_launch_description():
             "home_wrist_flex":        LaunchConfiguration("home_wrist_flex"),
             "home_wrist_roll":        LaunchConfiguration("home_wrist_roll"),
             "home_gripper":           LaunchConfiguration("home_gripper"),
-            "use_rest_pose":          LaunchConfiguration("use_rest_pose"),
-            "rest_shoulder_pan":      LaunchConfiguration("rest_shoulder_pan"),
-            "rest_shoulder_lift":     LaunchConfiguration("rest_shoulder_lift"),
-            "rest_elbow_flex":        LaunchConfiguration("rest_elbow_flex"),
-            "rest_wrist_flex":        LaunchConfiguration("rest_wrist_flex"),
-            "rest_wrist_roll":        LaunchConfiguration("rest_wrist_roll"),
-            "rest_gripper":           LaunchConfiguration("rest_gripper"),
+            "use_reset_pose":          LaunchConfiguration("use_reset_pose"),
+            "reset_shoulder_pan":      LaunchConfiguration("reset_shoulder_pan"),
+            "reset_shoulder_lift":     LaunchConfiguration("reset_shoulder_lift"),
+            "reset_elbow_flex":        LaunchConfiguration("reset_elbow_flex"),
+            "reset_wrist_flex":        LaunchConfiguration("reset_wrist_flex"),
+            "reset_wrist_roll":        LaunchConfiguration("reset_wrist_roll"),
+            "reset_gripper":           LaunchConfiguration("reset_gripper"),
         }],
     )
 

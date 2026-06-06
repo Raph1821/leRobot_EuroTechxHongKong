@@ -109,15 +109,15 @@ class PatrolNode(Node):
         self.declare_parameter("home_wrist_roll", 0.0)
         self.declare_parameter("home_gripper", 0.0)
 
-        # Rest pose — arm returns here smoothly on Ctrl+C.
-        # When use_rest_pose=true the arm moves to this pose before exiting.
-        self.declare_parameter("use_rest_pose", False)
-        self.declare_parameter("rest_shoulder_pan", 0.0)
-        self.declare_parameter("rest_shoulder_lift", 0.0)
-        self.declare_parameter("rest_elbow_flex", 0.0)
-        self.declare_parameter("rest_wrist_flex", 0.0)
-        self.declare_parameter("rest_wrist_roll", 0.0)
-        self.declare_parameter("rest_gripper", 0.0)
+        # Reset pose — arm returns here smoothly on Ctrl+C.
+        # When use_reset_pose=true the arm moves to this pose before exiting.
+        self.declare_parameter("use_reset_pose", False)
+        self.declare_parameter("reset_shoulder_pan", -0.0844)
+        self.declare_parameter("reset_shoulder_lift", -1.8270)
+        self.declare_parameter("reset_elbow_flex", 1.6659)
+        self.declare_parameter("reset_wrist_flex", 1.1612)
+        self.declare_parameter("reset_wrist_roll", 0.0614)
+        self.declare_parameter("reset_gripper", 0.0015)
 
         # ------------------------------------------------------------------ #
         # Read parameters
@@ -142,14 +142,14 @@ class PatrolNode(Node):
             float(self.get_parameter("home_gripper").value),
         ]
 
-        self._use_rest_pose = bool(self.get_parameter("use_rest_pose").value)
-        self._rest_pose: list[float] = [
-            float(self.get_parameter("rest_shoulder_pan").value),
-            float(self.get_parameter("rest_shoulder_lift").value),
-            float(self.get_parameter("rest_elbow_flex").value),
-            float(self.get_parameter("rest_wrist_flex").value),
-            float(self.get_parameter("rest_wrist_roll").value),
-            float(self.get_parameter("rest_gripper").value),
+        self._use_reset_pose = bool(self.get_parameter("use_reset_pose").value)
+        self._reset_pose: list[float] = [
+            float(self.get_parameter("reset_shoulder_pan").value),
+            float(self.get_parameter("reset_shoulder_lift").value),
+            float(self.get_parameter("reset_elbow_flex").value),
+            float(self.get_parameter("reset_wrist_flex").value),
+            float(self.get_parameter("reset_wrist_roll").value),
+            float(self.get_parameter("reset_gripper").value),
         ]
 
         # ------------------------------------------------------------------ #
@@ -159,7 +159,7 @@ class PatrolNode(Node):
         self._target_pan: float = self._pan_left
         self._pre_detection_state: str = self._STATE_PATROL
         self._person_lost_time = None
-        self._rest_reached: bool = False
+        self._reset_reached: bool = False
 
         self._state = self._STATE_HOMING if self._use_configured_home else self._STATE_PATROL
 
@@ -189,9 +189,9 @@ class PatrolNode(Node):
         if self._use_configured_home:
             vals = "  ".join(f"{n}={v:+.4f}" for n, v in zip(_JOINT_NAMES, self._home_pose))
             self.get_logger().info(f"  home pose            : {vals}")
-        if self._use_rest_pose:
-            vals = "  ".join(f"{n}={v:+.4f}" for n, v in zip(_JOINT_NAMES, self._rest_pose))
-            self.get_logger().info(f"  rest pose            : {vals}")
+        if self._use_reset_pose:
+            vals = "  ".join(f"{n}={v:+.4f}" for n, v in zip(_JOINT_NAMES, self._reset_pose))
+            self.get_logger().info(f"  reset pose           : {vals}")
         self.get_logger().info("Waiting for first joint state...")
 
     # ---------------------------------------------------------------------- #
@@ -272,7 +272,7 @@ class PatrolNode(Node):
         # HOMING / RESTING: smoothly move all 6 joints to target pose
         # ------------------------------------------------------------------ #
         if self._state in (self._STATE_HOMING, self._STATE_RESTING):
-            target = self._home_pose if self._state == self._STATE_HOMING else self._rest_pose
+            target = self._home_pose if self._state == self._STATE_HOMING else self._reset_pose
             all_reached = True
 
             for i in range(6):
@@ -293,8 +293,8 @@ class PatrolNode(Node):
                     self._target_pan = self._pan_left
                     self.get_logger().info("Publishing left patrol pose")
                 else:  # RESTING
-                    self.get_logger().info("Rest position reached — ready to shut down")
-                    self._rest_reached = True
+                    self.get_logger().info("Reset position reached — ready to shut down")
+                    self._reset_reached = True
             return
 
         # ------------------------------------------------------------------ #
@@ -339,12 +339,12 @@ def main(args=None) -> None:
             rclpy.spin_once(node, timeout_sec=0.1)
 
         # Ctrl+C received — move arm to rest pose before exiting
-        if node._use_rest_pose and node._current_pose is not None:
-            node.get_logger().info("Shutdown requested — returning to rest position...")
+        if node._use_reset_pose and node._current_pose is not None:
+            node.get_logger().info("Stopping patrol mode, moving to reset position")
             node._state = node._STATE_RESTING
-            node._rest_reached = False
+            node._reset_reached = False
             deadline = time.time() + 30.0
-            while rclpy.ok() and not node._rest_reached and time.time() < deadline:
+            while rclpy.ok() and not node._reset_reached and time.time() < deadline:
                 rclpy.spin_once(node, timeout_sec=0.1)
 
     finally:
