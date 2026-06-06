@@ -19,7 +19,7 @@ const RobotViewer = dynamic(() => import("./RobotViewer"), {
 type Tab = "control" | "simulator";
 
 export default function ManualControl() {
-  const { values, setJoint, home } = useJoints();
+  const { values, armValues, setJoint, home } = useJoints();
   const [activeTab, setActiveTab] = useState<Tab>("control");
 
   return (
@@ -27,7 +27,7 @@ export default function ManualControl() {
       {/* 3D viewer — commands sent here also move the real robot via WebSocket bridge */}
       <div className="relative min-h-[55vh] lg:min-h-0">
         <div className="absolute inset-0">
-          <RobotViewer jointValues={values} />
+          <RobotViewer jointValues={armValues} />
         </div>
         {/* Connection status badge */}
         <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded bg-black/50 px-2.5 py-1 text-[11px] font-medium text-paper">

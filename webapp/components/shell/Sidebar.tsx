@@ -40,14 +40,12 @@ export default function Sidebar() {
       {/* brand lockup — echoes the landing */}
       <div className="flex items-center gap-2.5 border-b border-hairline px-5 py-4">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-ink text-xs font-bold text-paper">
-          ◇
+          E
         </span>
         <div className="leading-tight">
-          <div className="font-display text-sm font-bold tracking-tight">
-            Robot Console
-          </div>
+          <div className="font-display text-sm font-bold tracking-tight">Elda</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-ink-soft">
-            EuroTech · HK
+            Elderly care robotics
           </div>
         </div>
       </div>

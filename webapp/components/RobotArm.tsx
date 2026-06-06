@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useLoader } from "@react-three/fiber";
+import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import URDFLoader, { type URDFRobot } from "urdf-loader";
@@ -31,15 +30,17 @@ export function colorFor(filename: string): string {
   return PART_COLORS.primary; // upper/under arm, rotation pitch, etc.
 }
 
-// Set up the STL mesh loader + per-role colouring. Shared by the full viewer
-// and the mini preview so both look identical.
-export function configureURDFLoader(loader: URDFLoader) {
-  loader.loadMeshCb = (path, manager, done) => {
-    const ext = path.split(".").pop()?.toLowerCase();
-    if (ext === "stl") {
-      new STLLoader(manager).load(
-        path,
-        (geometry) => {
+// Load a fresh SO-101 instance with STL meshes coloured by role.
+// Imperative (no useLoader/Suspense) so each viewer owns its own robot and
+// nothing can hang the render tree.
+export function useSO101(): URDFRobot | null {
+  const [robot, setRobot] = useState<URDFRobot | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const loader = new URDFLoader();
+    loader.loadMeshCb = (path, manager, done) => {
+      if (path.split(".").pop()?.toLowerCase() === "stl") {
+        new STLLoader(manager).load(path, (geometry) => {
           geometry.computeVertexNormals();
           const mesh = new THREE.Mesh(
             geometry,
@@ -49,16 +50,20 @@ export function configureURDFLoader(loader: URDFLoader) {
               roughness: 0.55,
             }),
           );
-          mesh.userData.srcFile = path;
           done(mesh);
-        },
-        undefined,
-        (err) => done(undefined as unknown as THREE.Object3D, err as Error),
-      );
-    } else {
-      done(undefined as unknown as THREE.Object3D);
-    }
-  };
+        });
+      } else {
+        done(undefined as unknown as THREE.Object3D);
+      }
+    };
+    loader.load(URDF_URL, (r) => {
+      if (!cancelled) setRobot(r as unknown as URDFRobot);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return robot;
 }
 
 export default function RobotArm({
@@ -66,38 +71,16 @@ export default function RobotArm({
 }: {
   jointValues: JointValues;
 }) {
-  // urdf-loader bundles its own (older) three typings, so its constructor
-  // doesn't structurally match r3f's LoaderLike — cast through unknown.
-  const robot = useLoader(
-    URDFLoader as unknown as new () => THREE.Loader,
-    URDF_URL,
-    (loader) => configureURDFLoader(loader as unknown as URDFLoader),
-  ) as unknown as URDFRobot;
+  const robot = useSO101();
 
-  // colour each part by role (useLoader caches the robot, so do it on the live tree)
-  useEffect(() => {
-    if (!robot) return;
-    robot.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if ((mesh as THREE.Mesh).isMesh) {
-        const src = (mesh.userData?.srcFile as string) ?? "";
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        mat.color.set(colorFor(src));
-        mat.needsUpdate = true;
-      }
-    });
-  }, [robot]);
-
-  // apply joint angles whenever they change
   useEffect(() => {
     if (!robot) return;
     for (const [name, value] of Object.entries(jointValues)) {
-      robot.setJointValue(name, value);
+      if (typeof robot.setJointValue === "function") robot.setJointValue(name, value);
     }
   }, [robot, jointValues]);
 
-  // URDF is Z-up; rotate into three's Y-up world and drop onto the ground
-  const transform = useMemo(() => ({ rotation: [-Math.PI / 2, 0, 0] as const }), []);
-
-  return <primitive object={robot} rotation={transform.rotation} />;
+  if (!robot) return null;
+  // URDF is Z-up; rotate into three's Y-up world
+  return <primitive object={robot} rotation={[-Math.PI / 2, 0, 0]} />;
 }

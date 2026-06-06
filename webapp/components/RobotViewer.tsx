@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid, Environment, Center } from "@react-three/drei";
+import { OrbitControls, Grid, Center } from "@react-three/drei";
 import RobotArm from "./RobotArm";
 import type { JointValues } from "@/lib/joints";
 
@@ -13,23 +13,17 @@ export default function RobotViewer({
 }) {
   return (
     <Canvas
-      shadows
-      camera={{ position: [0.45, 0.4, 0.55], fov: 45, near: 0.01, far: 50 }}
+      camera={{ position: [0.45, 0.35, 0.55], fov: 42, near: 0.01, far: 50 }}
       dpr={[1, 2]}
     >
       <color attach="background" args={["#f5f4ef"]} />
-      <hemisphereLight intensity={0.8} groundColor="#eceae2" color="#ffffff" />
-      <directionalLight
-        position={[2, 4, 2]}
-        intensity={2.4}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-      />
+      <hemisphereLight intensity={0.9} groundColor="#eceae2" color="#ffffff" />
+      <directionalLight position={[2, 4, 2]} intensity={2} />
+      <directionalLight position={[-2, 3, -1]} intensity={0.8} />
       <Suspense fallback={null}>
-        <Center top>
+        <Center>
           <RobotArm jointValues={jointValues} />
         </Center>
-        <Environment preset="studio" />
       </Suspense>
 
       <Grid
@@ -43,11 +37,12 @@ export default function RobotViewer({
         fadeDistance={4}
         fadeStrength={1.5}
         infiniteGrid
-        position={[0, 0, 0]}
+        position={[0, -0.2, 0]}
       />
       <OrbitControls
         makeDefault
         enableDamping
+        enablePan={false}
         minDistance={0.2}
         maxDistance={3}
         target={[0, 0.15, 0]}

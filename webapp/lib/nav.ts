@@ -5,8 +5,9 @@ import {
   CalendarDays,
   Pill,
   Activity,
-  Settings,
   MessageCircle,
+  Siren,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ export const NAV: NavItem[] = [
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/medications", label: "Medications", icon: Pill },
   { href: "/reports", label: "Reports & Alerts", icon: Activity },
+  { href: "/emergency", label: "Emergency", icon: Siren },
 ];
 
 export const SETTINGS: NavItem = {
