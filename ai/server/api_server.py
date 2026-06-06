@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Allow imports from ai/ when running via uvicorn from repo root
@@ -12,6 +13,7 @@ from pydantic import BaseModel
 
 from memory.care_memory import CareMemory
 from assistant.llm_client import LLMClient
+from assistant.intents import classify_intent, SWITCH_TO_PATROL, SWITCH_TO_SORTING
 from core.shared_frame import get_latest_frame
 
 app = FastAPI(title="CareAI API", version="1.0.0")
@@ -25,6 +27,24 @@ app.add_middleware(
 
 memory = CareMemory()
 llm = LLMClient()
+
+_READ_ONLY_MSG = (
+    "This web assistant is currently read-only. "
+    "I can answer questions, but I cannot change system state yet."
+)
+_ACTION_INTENTS = {SWITCH_TO_PATROL, SWITCH_TO_SORTING}
+_ACTION_KEYWORDS = [
+    "switch to patrol", "start patrol", "patrol mode",
+    "switch to sorting", "sorting mode",
+    "delete schedule", "remove schedule", "add schedule", "create schedule",
+    "change profile", "update profile", "trigger reminder",
+]
+
+def _is_action_request(message: str) -> bool:
+    if classify_intent(message)["intent"] in _ACTION_INTENTS:
+        return True
+    text = message.lower()
+    return any(kw in text for kw in _ACTION_KEYWORDS)
 
 
 class AskIn(BaseModel):
@@ -73,7 +93,29 @@ def events():
 
 @app.get("/schedule")
 def schedule_list():
-    return _fresh().get("medicine_schedule", [])
+    all_schedules = _fresh().get("medicine_schedule", [])
+    return [s for s in all_schedules if s.get("active", True)]
+
+
+@app.get("/schedule/next")
+def schedule_next():
+    _fresh()
+    active = [s for s in memory._data.get("medicine_schedule", []) if s.get("active")]
+    candidates = [(t, s) for s in active for t in s.get("times", [])]
+    if not candidates:
+        return {"has_next": False}
+
+    now_hhmm = datetime.now().strftime("%H:%M")
+    future = [(t, s) for t, s in candidates if t > now_hhmm]
+    t, s = min(future, key=lambda x: x[0]) if future else min(candidates, key=lambda x: x[0])
+
+    return {
+        "has_next": True,
+        "medicine_name": s["medicine_name"],
+        "dose": s["dose"],
+        "time": t,
+        "notes": s.get("notes", ""),
+    }
 
 
 @app.post("/schedule")
@@ -128,6 +170,8 @@ def camera_snapshot():
 
 @app.post("/assistant/ask")
 def assistant_ask(body: AskIn):
+    if _is_action_request(body.message):
+        return {"answer": _READ_ONLY_MSG}
     _fresh()
     context = memory.get_context()
     try:
