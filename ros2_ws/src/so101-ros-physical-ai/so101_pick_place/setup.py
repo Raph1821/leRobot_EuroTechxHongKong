@@ -21,6 +21,7 @@ setup(
     entry_points={
         "console_scripts": [
             "pick_place_node = so101_pick_place.pick_place_node:main",
+            "overhead_pick_place_node = so101_pick_place.overhead_pick_place_node:main",
         ],
     },
 )
