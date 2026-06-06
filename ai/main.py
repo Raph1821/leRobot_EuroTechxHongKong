@@ -99,17 +99,19 @@ def _ocr_worker(crop_queue: mp.Queue, result_queue: mp.Queue) -> None:
 
 def main(camera_index: int = 1) -> None:
     global DEBUG
-    cap = cv2.VideoCapture(camera_index)
+    # Use AVFoundation explicitly so the index matches:
+    #   [0] FaceTime HD Camera  [1] Logitech StreamCam
+    cap = cv2.VideoCapture(camera_index, cv2.CAP_AVFOUNDATION)
     if not cap.isOpened():
         print(f"Error: could not open camera {camera_index}. Check connection and macOS camera permissions.", file=sys.stderr)
         sys.exit(1)
 
-    # Request native Logitech resolution
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    print(f"Camera {camera_index} opened at {actual_w}x{actual_h}")
+    camera_label = "Logitech StreamCam" if camera_index == 1 else "FaceTime HD Camera" if camera_index == 0 else f"Camera {camera_index}"
+    print(f"Using: {camera_label} ({actual_w}x{actual_h})")
 
     print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
