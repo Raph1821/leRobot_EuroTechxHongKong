@@ -26,8 +26,11 @@ def generate_launch_description():
                 "enable_depth":  True,
                 "enable_infra1": False,
                 "enable_infra2": False,
-                "rgb_camera.color_profile":   "640x480x30",
-                "depth_module.depth_profile":  "640x480x30",
+                # Lower FPS + smaller colour res to fit USB bandwidth in QEMU.
+                # D405 native colour width is 848; depth is 640.
+                # Raise fps to 15 or 30 once bandwidth is confirmed stable.
+                "rgb_camera.color_profile":   "424x240x6",
+                "depth_module.depth_profile":  "640x480x6",
                 "align_depth.enable": True,
                 "pointcloud.enable":  False,
             }],
