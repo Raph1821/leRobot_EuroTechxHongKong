@@ -31,7 +31,6 @@ export default function Topbar() {
           </span>
           {s.label}
         </span>
-        <span className="hidden sm:block">AI &amp; Robotics</span>
       </div>
     </header>
   );

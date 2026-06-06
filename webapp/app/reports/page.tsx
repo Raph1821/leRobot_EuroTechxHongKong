@@ -1,4 +1,7 @@
-import { TriangleAlert, Bell, MapPin, CheckCircle2 } from "lucide-react";
+"use client";
+
+import { TriangleAlert, Bell, MapPin, CheckCircle2, Activity } from "lucide-react";
+import { getEvents, usePoll, type CareEvent } from "@/lib/careApi";
 
 const STATS = [
   { label: "Doses on time (7d)", value: "98%", sub: "+3% vs last week" },
@@ -10,15 +13,28 @@ const STATS = [
 const CHART = [40, 65, 50, 80, 60, 95, 72];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-type Alert = { icon: typeof Bell; tone: string; title: string; time: string };
-const ALERTS: Alert[] = [
+type MockAlert = { icon: typeof Bell; tone: string; title: string; time: string };
+const MOCK_ALERTS: MockAlert[] = [
   { icon: TriangleAlert, tone: "text-coral", title: "Ibuprofen low stock (4 left)", time: "12 min ago" },
   { icon: Bell, tone: "text-gold", title: "Amoxicillin expiring this month", time: "2 h ago" },
-  { icon: CheckCircle2, tone: "text-emerald-600", title: "14:00 dose dispensed — Aspirin", time: "today" },
+  { icon: CheckCircle2, tone: "text-emerald-600", title: "14:00 dose dispensed (Aspirin)", time: "today" },
   { icon: CheckCircle2, tone: "text-emerald-600", title: "Patrol completed, no anomalies", time: "today" },
 ];
 
+function eventIcon(e: CareEvent) {
+  const t = e.type.toLowerCase();
+  if (t.includes("fall") || t.includes("emergency"))
+    return { Icon: TriangleAlert, tone: "text-coral" };
+  if (t.includes("expir") || t.includes("alert") || t.includes("health"))
+    return { Icon: Bell, tone: "text-gold" };
+  return { Icon: CheckCircle2, tone: "text-emerald-600" };
+}
+
 export default function ReportsPage() {
+  const { data, online } = usePoll(getEvents, 5000);
+  const live = online && Array.isArray(data);
+  const liveEvents = live ? data!.slice(0, 12) : [];
+
   return (
     <div className="space-y-4 p-6">
       {/* stat cards */}
@@ -51,25 +67,47 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* alerts */}
+        {/* alerts / live events */}
         <div className="rounded-2xl border border-hairline bg-paper p-5">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium">Alerts</span>
-            <span className="rounded-full bg-coral/15 px-2 py-0.5 text-[11px] font-medium text-coral">
-              1 active
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Activity size={15} /> {live ? "Live events" : "Alerts"}
             </span>
           </div>
-          <ul className="space-y-3">
-            {ALERTS.map((a, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <a.icon size={16} className={`mt-0.5 ${a.tone}`} />
-                <span className="flex-1">
-                  <span className="block text-sm">{a.title}</span>
-                  <span className="text-[11px] text-ink-soft">{a.time}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+
+          {live ? (
+            <ul className="space-y-3">
+              {liveEvents.length === 0 && (
+                <li className="text-sm text-ink-soft">No events yet.</li>
+              )}
+              {liveEvents.map((e, i) => {
+                const { Icon, tone } = eventIcon(e);
+                return (
+                  <li key={i} className="flex items-start gap-3">
+                    <Icon size={16} className={`mt-0.5 ${tone}`} />
+                    <span className="flex-1">
+                      <span className="block text-sm">{e.message}</span>
+                      <span className="text-[11px] text-ink-soft">
+                        {e.type} · {e.timestamp}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <ul className="space-y-3">
+              {MOCK_ALERTS.map((a, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <a.icon size={16} className={`mt-0.5 ${a.tone}`} />
+                  <span className="flex-1">
+                    <span className="block text-sm">{a.title}</span>
+                    <span className="text-[11px] text-ink-soft">{a.time}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
