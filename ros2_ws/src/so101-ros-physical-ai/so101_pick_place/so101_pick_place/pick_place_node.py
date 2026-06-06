@@ -76,11 +76,12 @@ _LIFT_SERVO_LIMITS  = (-2.0,  0.0)   # shoulder_lift clamp during CENTER
 
 
 class PickPlaceNode(Node):
-    _STATE_IDLE   = "IDLE"
-    _STATE_RESET  = "RESET"
-    _STATE_SEARCH = "SEARCH_OBJECT"
-    _STATE_CENTER = "CENTER_OBJECT"
-    _STATE_GRASP  = "GRASP"
+    _STATE_IDLE        = "IDLE"
+    _STATE_RESET       = "RESET"
+    _STATE_SEARCH_POSE = "SEARCH_POSE"   # move to patrol height before sweeping
+    _STATE_SEARCH      = "SEARCH_OBJECT"
+    _STATE_CENTER      = "CENTER_OBJECT"
+    _STATE_GRASP       = "GRASP"
 
     def __init__(self) -> None:
         super().__init__("pick_place_node")
@@ -101,6 +102,8 @@ class PickPlaceNode(Node):
 
         # Poses — [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper]
         self.declare_parameter("reset_pose",         [-0.0844, -1.8270,  1.6659,  1.1612,  0.0614,  0.0015])
+        # Patrol home height — arm rises here before sweeping. Default = patrol home pose.
+        self.declare_parameter("search_pose",        [ 0.1457, -0.9710, -0.1856,  1.4557, -0.0276,  0.0046])
         self.declare_parameter("pre_grasp_pose",     [ 0.0000, -0.9000,  0.5000,  1.0000,  0.0000,  0.0000])
         self.declare_parameter("approach_pose",      [ 0.0000, -0.5000,  0.8000,  1.2000,  0.0000,  0.0000])
         self.declare_parameter("close_gripper_pose", [ 0.0000, -0.5000,  0.8000,  1.2000,  0.0000, -0.4000])
@@ -123,6 +126,7 @@ class PickPlaceNode(Node):
 
         def _pose(name): return list(self.get_parameter(name).value)
         self._reset_pose         = _pose("reset_pose")
+        self._search_pose        = _pose("search_pose")
         self._pre_grasp_pose     = _pose("pre_grasp_pose")
         self._approach_pose      = _pose("approach_pose")
         self._close_gripper_pose = _pose("close_gripper_pose")
@@ -260,11 +264,19 @@ class PickPlaceNode(Node):
             if self._near(self._current_pose, self._reset_pose):
                 self.get_logger().info("Reset pose reached")
                 if not self._shutdown_mode:
-                    self.get_logger().info("Starting SEARCH")
-                    self._state         = self._STATE_SEARCH
-                    self._last_det      = None
-                    self._centered_cnt  = 0
-                    self._search_target = _PAN_SEARCH_LIMITS[1]
+                    self.get_logger().info("Rising to search pose")
+                    self._state = self._STATE_SEARCH_POSE
+            return
+
+        # SEARCH_POSE ───────────────────────────────────────────────────────
+        if self._state == self._STATE_SEARCH_POSE:
+            self._move_toward(self._search_pose, max_step)
+            if self._near(self._current_pose, self._search_pose):
+                self.get_logger().info("Search pose reached — starting SEARCH sweep")
+                self._state         = self._STATE_SEARCH
+                self._last_det      = None
+                self._centered_cnt  = 0
+                self._search_target = _PAN_SEARCH_LIMITS[1]
             return
 
         # SEARCH_OBJECT ─────────────────────────────────────────────────────
@@ -320,11 +332,10 @@ class PickPlaceNode(Node):
         # GRASP ─────────────────────────────────────────────────────────────
         if self._state == self._STATE_GRASP:
             if self._grasp_step >= len(self._grasp_sequence):
-                self.get_logger().info("Grasp sequence complete — returning to SEARCH")
-                self._state         = self._STATE_SEARCH
-                self._last_det      = None
-                self._centered_cnt  = 0
-                self._search_target = _PAN_SEARCH_LIMITS[1]
+                self.get_logger().info("Grasp sequence complete — returning to search pose")
+                self._state = self._STATE_SEARCH_POSE
+                self._last_det     = None
+                self._centered_cnt = 0
                 return
 
             target, label = self._grasp_sequence[self._grasp_step]

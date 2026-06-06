@@ -81,6 +81,8 @@ def generate_launch_description():
             #               wrist_flex,   wrist_roll,   gripper]
             # TUNE THESE before running — defaults are conservative placeholders.
             "reset_pose":         [-0.0844, -1.8270,  1.6659,  1.1612,  0.0614,  0.0015],
+            # Patrol home height — arm rises here before sweeping (same as patrol home pose).
+            "search_pose":        [ 0.1457, -0.9710, -0.1856,  1.4557, -0.0276,  0.0046],
             "pre_grasp_pose":     [ 0.0000, -0.9000,  0.5000,  1.0000,  0.0000,  0.0000],
             "approach_pose":      [ 0.0000, -0.5000,  0.8000,  1.2000,  0.0000,  0.0000],
             "close_gripper_pose": [ 0.0000, -0.5000,  0.8000,  1.2000,  0.0000, -0.4000],
