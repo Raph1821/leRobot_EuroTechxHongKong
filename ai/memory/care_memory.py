@@ -10,7 +10,20 @@ _EMPTY: dict = {
     "medicine_schedule": [],
     "daily_summaries": [],
     "briefings": [],
+    "wellbeing_reports": [],
+    "dose_history": [],
 }
+
+
+def _empty_baseline() -> dict:
+    return {
+        "daily_interactions": None,
+        "weekly_health_concerns": None,
+        "weekly_emergencies": None,
+        "weekly_voice_help_requests": None,
+        "weekly_missed_reminders": None,
+        "last_updated": None,
+    }
 
 
 def _empty_profile() -> dict:
@@ -21,6 +34,7 @@ def _empty_profile() -> dict:
         "caregiver_contact": "",
         "reminder_voice_enabled": True,
         "notes": [],
+        "baseline": _empty_baseline(),
     }
 
 
@@ -152,6 +166,48 @@ class CareMemory:
     def add_profile_note(self, note: str) -> None:
         self._data["profile"]["notes"].append(note)
         self.save()
+
+    def add_dose_record(
+        self,
+        medicine_name: str,
+        dose: str,
+        scheduled_time: str,
+        status: str = "taken",
+        source: str = "manual",
+    ) -> None:
+        today = datetime.now().strftime("%Y-%m-%d")
+        for rec in self._data["dose_history"]:
+            if (
+                rec.get("medicine_name") == medicine_name
+                and rec.get("scheduled_time") == scheduled_time
+                and rec.get("recorded_at", "").startswith(today)
+            ):
+                return  # duplicate for today
+        self._data["dose_history"].append({
+            "id": str(uuid.uuid4())[:8],
+            "medicine_name": medicine_name,
+            "dose": dose,
+            "scheduled_time": scheduled_time,
+            "status": status,
+            "recorded_at": _now(),
+            "source": source,
+        })
+        self.save()
+
+    def get_dose_history(self, days: int = 7) -> list[dict]:
+        from datetime import timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        return [r for r in self._data["dose_history"] if r.get("recorded_at", "") >= cutoff]
+
+    def get_doses_taken_today(self) -> list[dict]:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return [
+            r for r in self._data["dose_history"]
+            if r.get("status") == "taken" and r.get("recorded_at", "").startswith(today)
+        ]
+
+    def get_doses_dispensed_last_7_days(self) -> list[dict]:
+        return [r for r in self.get_dose_history(days=7) if r.get("status") == "taken"]
 
     def get_context(self) -> dict:
         return {

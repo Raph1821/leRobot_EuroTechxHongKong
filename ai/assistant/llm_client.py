@@ -9,7 +9,6 @@ _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
 
 def _load_env() -> None:
-    """Load key=value pairs from .env into os.environ (does not overwrite existing vars)."""
     if not _ENV_PATH.exists():
         return
     with open(_ENV_PATH) as f:
@@ -25,46 +24,99 @@ def _load_env() -> None:
 
 
 def _format_context(context: dict) -> str:
-    parts = ["[Current system context]"]
+    """Format CareContext into a concise text block for the LLM."""
+    parts = ["[CareContext]"]
+
+    if date := context.get("current_date"):
+        parts.append(f"Date: {date}")
 
     if profile := context.get("profile"):
         if name := profile.get("name"):
-            parts.append(f"Patient name: {name}")
+            parts.append(f"Patient: {name}")
         if age := profile.get("age"):
-            parts.append(f"Patient age: {age}")
+            parts.append(f"Age: {age}")
         if caregiver := profile.get("caregiver_name"):
             parts.append(f"Caregiver: {caregiver}")
 
-    if mode := context.get("current_mode"):
-        parts.append(f"Current mode: {mode}")
+    # Support both CareContextBuilder key (medicine_schedule) and legacy terminal key (active_schedules)
+    schedules = context.get("medicine_schedule") or context.get("active_schedules")
+    if schedules:
+        parts.append("Medicine schedule:")
+        for s in schedules:
+            times_str = ", ".join(s.get("times", []))
+            note = f" ({s['notes']})" if s.get("notes") else ""
+            mock = " [demo]" if s.get("source") == "demo_mock" else ""
+            parts.append(f"  - {s.get('medicine_name', '?')} {s.get('dose', '')} at {times_str}{note}{mock}")
+    else:
+        parts.append("Medicine schedule: none on record")
+
+    if next_dose := context.get("next_dose"):
+        if next_dose.get("has_next"):
+            note = f" ({next_dose['notes']})" if next_dose.get("notes") else ""
+            parts.append(
+                f"Next dose: {next_dose['medicine_name']} at {next_dose['time']}"
+                f" — {next_dose['dose']}{note}"
+            )
+        else:
+            parts.append("Next dose: none scheduled")
+
+    taken = context.get("taken_today", [])
+    if taken:
+        parts.append("Taken today:")
+        for r in taken:
+            t = r.get("scheduled_time") or r.get("recorded_at", "")[:16]
+            parts.append(f"  - {r.get('medicine_name', '?')} at {t}")
+    else:
+        parts.append("Taken today: none recorded")
+
+    if history := context.get("dose_history"):
+        recent = history[-5:]
+        parts.append(f"Dose history (last {len(recent)} records):")
+        for r in recent:
+            parts.append(
+                f"  - {r.get('medicine_name', '?')} {r.get('status', '?')}"
+                f" at {r.get('recorded_at', '')[:16]}"
+            )
 
     if medicines := context.get("scanned_medicines"):
         parts.append("Scanned medicines:")
         for m in medicines:
             parts.append(
-                f"  - {m.get('medicine_name', '?')}"
+                f"  - {m.get('name', '?')}"
                 f" (expires {m.get('expiration_date', '?')},"
                 f" status: {m.get('status', 'unknown')})"
             )
+    else:
+        parts.append("Scanned medicines: none on record")
+
+    if ws := context.get("wellbeing_status"):
+        if ws.get("risk_level"):
+            reasons = "; ".join(ws.get("reasons", [])) or "none"
+            parts.append(
+                f"Wellbeing: {ws['risk_level']} (score {ws.get('score')}/100)"
+                f" — {reasons}"
+            )
+
+    if concerns := context.get("health_concerns"):
+        parts.append("Health concerns: " + "; ".join(concerns))
+
+    # Support both CareContextBuilder key (emergencies) and legacy key (recent_emergencies)
+    emergencies = context.get("emergencies") or context.get("recent_emergencies")
+    if emergencies:
+        parts.append(f"Emergencies ({len(emergencies)} total, showing last 3):")
+        for e in emergencies[-3:]:
+            parts.append(f"  - [{e.get('source', '?')}] {e.get('message', '')}")
 
     if events := context.get("recent_events"):
         parts.append("Recent events:")
-        for e in events:
-            parts.append(f"  - [{e.get('event_type', '?')}] {e.get('message', '')}")
+        for e in events[-5:]:
+            parts.append(f"  - [{e.get('type', e.get('event_type', '?'))}] {e.get('message', '')}")
 
+    # Legacy terminal assistant fields
+    if mode := context.get("current_mode"):
+        parts.append(f"Current mode: {mode}")
     if status := context.get("patrol_status"):
         parts.append(f"Patrol status: {status}")
-
-    if schedules := context.get("active_schedules"):
-        parts.append("Active medicine schedule:")
-        for s in schedules:
-            times_str = ", ".join(s.get("times", []))
-            parts.append(f"  - {s.get('medicine_name', '?')} {s.get('dose', '')} at {times_str}")
-
-    if emergencies := context.get("recent_emergencies"):
-        parts.append("Recent emergencies:")
-        for e in emergencies[-3:]:
-            parts.append(f"  - [{e.get('source', '?')}] {e.get('message', '')}")
 
     return "\n".join(parts)
 

@@ -5,6 +5,7 @@ EMERGENCY_STATUS = "EMERGENCY_STATUS"
 FIND_MEDICINE = "FIND_MEDICINE"
 TODAY_SCHEDULE = "TODAY_SCHEDULE"
 LAST_EMERGENCY = "LAST_EMERGENCY"
+WELLBEING_STATUS = "WELLBEING_STATUS"
 SWITCH_TO_PATROL = "SWITCH_TO_PATROL"
 SWITCH_TO_SORTING = "SWITCH_TO_SORTING"
 HELP = "HELP"
@@ -14,6 +15,9 @@ UNKNOWN = "UNKNOWN"
 # Checked top-to-bottom; first match wins.
 # Longer/more-specific phrases listed first within each group.
 _RULES = [
+    (WELLBEING_STATUS,  ["how am i doing", "wellbeing status", "my wellbeing", "health concerns",
+                         "am i okay", "am i ok", "any risks", "how is my health", "noticed any concerns",
+                         "care status", "overall status"]),
     (SWITCH_TO_PATROL,  ["switch to patrol", "start patrol", "patrol mode", "go to patrol"]),
     (SWITCH_TO_SORTING, ["switch to sorting", "start sorting", "sorting mode", "go to sorting"]),
     (LAST_EMERGENCY,    ["when was the last emergency", "most recent emergency", "last emergency"]),

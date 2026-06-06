@@ -31,6 +31,7 @@ from speech.tts_engine import TTSEngine
 from summary.daily_summary import DailySummary
 from summary.morning_briefing import MorningBriefing
 from health.health_check import HealthCheck
+from wellbeing.wellbeing_report import WellbeingReport
 
 DEBUG = True
 
@@ -146,7 +147,7 @@ def main(camera_index: int = 0) -> None:
     camera_label = f"Camera {camera_index}"
     print(f"Using: {camera_label} ({actual_w}x{actual_h})")
 
-    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
+    print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  D=record-dose  X=dose-history  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
     current_mode: AppMode = AppMode.SORTING
     print("Entered SORTING mode")
@@ -161,6 +162,7 @@ def main(camera_index: int = 0) -> None:
     daily_summary = DailySummary(memory, llm_client=llm_client)
     morning_briefing = MorningBriefing(memory, llm_client=llm_client)
     health_check = HealthCheck()
+    wellbeing_reporter = WellbeingReport(memory, llm_client=llm_client)
 
     def on_voice_emergency(text: str) -> None:
         print("EMERGENCY DETECTED: voice help request")
@@ -311,6 +313,7 @@ def main(camera_index: int = 0) -> None:
                     profile=mem_ctx.get("profile"),
                     active_schedules=recall.get_today_schedules(),
                     recent_emergencies=recall.get_recent_emergencies(),
+                    wellbeing_reporter=wellbeing_reporter,
                 )
                 print("\n================ CAREAI RESPONSE ================")
                 print(result.message)
@@ -343,6 +346,19 @@ def main(camera_index: int = 0) -> None:
             print(summary)
             print("====================================================\n")
             tts.speak("Daily care summary generated.")
+        if key == ord("D"):
+            now_hhmm = __import__("datetime").datetime.now().strftime("%H:%M")
+            memory.add_dose_record("Vitamin D", "1 tablet", now_hhmm, status="taken", source="manual")
+            print(f"Sample dose recorded: Vitamin D at {now_hhmm}")
+        if key == ord("X"):
+            history = memory.get_dose_history(days=7)
+            print("\n================ DOSE HISTORY (last 7 days) ================")
+            if not history:
+                print("  (no dose records)")
+            for r in history:
+                print(f"  [{r['recorded_at'][:16]}] {r['medicine_name']} {r['dose']} "
+                      f"@ {r['scheduled_time']} — {r['status']} ({r['source']})")
+            print("=============================================================\n")
         if key == ord("T"):
             tts.speak("CareAI speaker test.")
             print("Speaker test: speaking 'CareAI speaker test.'")

@@ -4,7 +4,7 @@ from typing import Any, Optional
 from assistant.intents import (
     EMERGENCY_STATUS, EXPIRE_SOON, FIND_MEDICINE, HELP, LAST_EMERGENCY,
     LIST_MEDICINES, RECENT_EVENTS, SWITCH_TO_PATROL, SWITCH_TO_SORTING,
-    TODAY_SCHEDULE, UNKNOWN,
+    TODAY_SCHEDULE, UNKNOWN, WELLBEING_STATUS,
 )
 
 
@@ -25,6 +25,7 @@ def handle_intent(
     profile: Optional[dict] = None,
     active_schedules: Optional[list] = None,
     recent_emergencies: Optional[list] = None,
+    wellbeing_reporter: Any = None,
 ) -> ActionResult:
     if intent == LIST_MEDICINES:
         return _list_medicines(scanned_medicines)
@@ -40,6 +41,8 @@ def handle_intent(
         return _today_schedule(active_schedules or [])
     if intent == LAST_EMERGENCY:
         return _last_emergency(recent_emergencies or [])
+    if intent == WELLBEING_STATUS:
+        return _wellbeing_status(wellbeing_reporter)
     if intent == SWITCH_TO_PATROL:
         return ActionResult("Switched to patrol mode.", switch_mode="PATROL")
     if intent == SWITCH_TO_SORTING:
@@ -122,8 +125,43 @@ def _help() -> ActionResult:
         "- When was the last emergency?\n"
         "- Was there an emergency?\n"
         "- Start patrol mode / Switch to sorting mode\n"
+        "- How am I doing? / Wellbeing status\n"
         "- Anything else (answered by CareAI)"
     )
+
+
+def _wellbeing_status(wellbeing_reporter) -> ActionResult:
+    if not wellbeing_reporter:
+        return ActionResult("Wellbeing reporting is not available right now.")
+    try:
+        report = wellbeing_reporter.generate()
+        level = report["risk_level"]
+        score = report["score"]
+        reasons = report["reasons"]
+
+        lines = [f"Current wellbeing status: {level} (score {score}/100)."]
+
+        if reasons:
+            lines.append("CareAI noticed: " + "; ".join(r.lower() for r in reasons) + ".")
+        else:
+            lines.append("No significant wellbeing risk signals detected.")
+
+        if level == "HIGH_RISK":
+            lines.append(
+                "This is not a diagnosis. Please consider contacting a caregiver "
+                "or healthcare professional."
+            )
+        elif level == "CAUTION":
+            lines.append(
+                "This is not a diagnosis — these are observed patterns. "
+                "Consider checking in with a caregiver."
+            )
+        else:
+            lines.append("Keep up the good routine.")
+
+        return ActionResult("\n".join(lines))
+    except Exception as exc:
+        return ActionResult(f"Could not generate wellbeing report. ({exc})")
 
 
 def _find_medicine(medicines: list[dict], user_message: str) -> ActionResult:

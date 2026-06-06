@@ -225,6 +225,49 @@ function MessagesBody() {
   );
 }
 
+type DosesData = { days: { day: string; count: number }[]; total: number; on_time_pct: number };
+const REPORTS_FALLBACK_BARS = [40, 65, 50, 80, 60, 95, 70];
+
+function ReportsBody() {
+  const [data, setData] = useState<DosesData | null>(null);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/doses/dispensed/last7days")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {});
+  }, []);
+
+  const bars = data
+    ? (() => {
+        const maxCount = Math.max(...data.days.map((d) => d.count), 1);
+        return data.days.map((d) => Math.round((d.count / maxCount) * 100));
+      })()
+    : REPORTS_FALLBACK_BARS;
+
+  const pct = data ? data.on_time_pct : 98;
+
+  return (
+    <div className="flex h-full items-stretch gap-4">
+      <div className="flex flex-col justify-center">
+        <span className="font-display text-3xl font-extrabold tracking-tight">{pct}%</span>
+        <span className="text-xs text-ink-soft">doses on time (7d)</span>
+      </div>
+      <div className="flex flex-1 items-end gap-1.5">
+        {bars.map((h, i) => (
+          <span key={i} className="flex-1 rounded-t bg-harbour/70" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <div className="flex w-36 flex-col justify-center gap-1.5 border-l border-hairline pl-3 text-[11px]">
+        <span className="flex items-center gap-1.5 text-coral">
+          <TriangleAlert size={12} /> 1 active alert
+        </span>
+        <span className="text-ink-soft">Ibuprofen low stock</span>
+      </div>
+    </div>
+  );
+}
+
 function EmergencyBody() {
   return (
     <div className="flex h-full items-center gap-3">
@@ -308,25 +351,7 @@ const CARDS: Card[] = [
     title: "Reports & Alerts",
     Icon: Activity,
     accent: "var(--ink)",
-    body: (
-      <div className="flex h-full items-stretch gap-4">
-        <div className="flex flex-col justify-center">
-          <span className="font-display text-3xl font-extrabold tracking-tight">98%</span>
-          <span className="text-xs text-ink-soft">doses on time (7d)</span>
-        </div>
-        <div className="flex flex-1 items-end gap-1.5">
-          {[40, 65, 50, 80, 60, 95, 70].map((h, i) => (
-            <span key={i} className="flex-1 rounded-t bg-harbour/70" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-        <div className="flex w-36 flex-col justify-center gap-1.5 border-l border-hairline pl-3 text-[11px]">
-          <span className="flex items-center gap-1.5 text-coral">
-            <TriangleAlert size={12} /> 1 active alert
-          </span>
-          <span className="text-ink-soft">Ibuprofen low stock</span>
-        </div>
-      </div>
-    ),
+    body: <ReportsBody />,
   },
   {
     id: "interaction",

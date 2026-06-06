@@ -1,10 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { TriangleAlert, Bell, MapPin, CheckCircle2, Activity } from "lucide-react";
 import { getEvents, usePoll, humanTime, type CareEvent } from "@/lib/careApi";
 
-const CHART = [40, 65, 50, 80, 60, 95, 72];
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const CHART_FALLBACK = [40, 65, 50, 80, 60, 95, 72];
+const DAYS_FALLBACK   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+type DayCount = { day: string; count: number };
+type DosesResponse = { days: DayCount[]; total: number };
 
 type MockAlert = { icon: typeof Bell; tone: string; title: string; time: string };
 const MOCK_ALERTS: MockAlert[] = [
@@ -28,21 +32,42 @@ export default function ReportsPage() {
   const live = online && Array.isArray(data);
   const liveEvents = live ? data!.slice(0, 12) : [];
 
+  const [doses, setDoses] = useState<DosesResponse | null>(null);
+  useEffect(() => {
+    fetch("http://localhost:8000/doses/dispensed/last7days")
+      .then((r) => r.json())
+      .then(setDoses)
+      .catch(() => {});
+  }, []);
+
+  const chartBars = doses
+    ? (() => {
+        const maxCount = Math.max(...doses.days.map((d) => d.count), 1);
+        return doses.days.map((d) => ({
+          day: d.day,
+          height: Math.round((d.count / maxCount) * 100),
+        }));
+      })()
+    : CHART_FALLBACK.map((h, i) => ({ day: DAYS_FALLBACK[i], height: h }));
+
   return (
     <div className="space-y-4 p-6">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
         {/* chart */}
         <div className="rounded-2xl border border-hairline bg-paper p-5">
           <div className="mb-4 text-sm font-medium">Doses dispensed · last 7 days</div>
-          <div className="flex h-44 items-end gap-3">
-            {CHART.map((h, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <span
-                  className="w-full rounded-t bg-harbour/70"
-                  style={{ height: `${h}%` }}
-                />
-                <span className="text-[11px] text-ink-soft">{DAYS[i]}</span>
-              </div>
+          <div className="flex h-36 items-end gap-3">
+            {chartBars.map((bar, i) => (
+              <span
+                key={i}
+                className="flex-1 rounded-t bg-harbour/70"
+                style={{ height: `${bar.height}%` }}
+              />
+            ))}
+          </div>
+          <div className="mt-2 flex gap-3">
+            {chartBars.map((bar, i) => (
+              <span key={i} className="flex-1 text-center text-[11px] text-ink-soft">{bar.day}</span>
             ))}
           </div>
         </div>
