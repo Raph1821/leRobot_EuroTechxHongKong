@@ -1,3 +1,4 @@
+import argparse
 import logging
 import multiprocessing as mp
 import queue
@@ -38,7 +39,7 @@ def _expiration_status(expiration_date: str) -> str:
         return "unknown"
 
 CROP_RATIO = 0.5
-MAX_CROP_WIDTH = 640
+MAX_CROP_WIDTH = 960   # Logitech 1080p gives enough detail at 960px
 OCR_MIN_INTERVAL = 1.5
 
 
@@ -96,12 +97,19 @@ def _ocr_worker(crop_queue: mp.Queue, result_queue: mp.Queue) -> None:
             time.sleep(remaining)
 
 
-def main() -> None:
+def main(camera_index: int = 1) -> None:
     global DEBUG
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
-        print("Error: could not open camera. Check that the camera is connected and that macOS camera permission is granted.", file=sys.stderr)
+        print(f"Error: could not open camera {camera_index}. Check connection and macOS camera permissions.", file=sys.stderr)
         sys.exit(1)
+
+    # Request native Logitech resolution
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print(f"Camera {camera_index} opened at {actual_w}x{actual_h}")
 
     print("Camera opened. Keys: 1=sorting  2=patrol  r=reset  d=debug  e=events  m=memory  M=schedules  S=add-sample-schedule  R=check-reminders  T=speaker-test  B=briefing  Y=daily-summary  H=health-check  P=profile  p=state  a=assistant  q=quit")
 
@@ -390,4 +398,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    main()
+    parser = argparse.ArgumentParser(description="CareAI — Medicine & Care Assistant")
+    parser.add_argument("--camera", type=int, default=1, help="Camera index (default: 1 = Logitech)")
+    args = parser.parse_args()
+    main(camera_index=args.camera)
