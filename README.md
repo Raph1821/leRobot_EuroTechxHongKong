@@ -90,9 +90,9 @@ The SO-101 is a **stationary robotic care arm** that helps elderly patients mana
 │  │ • agent.py   │  │ • spatial_memory │  │ • transcriber.py        │   │
 │  │   (MCP loop) │  │   (CLIP+ChromaDB)│  │   (Whisper / AWS)       │   │
 │  │ • provider.py│  │ • embedding.py   │  │                         │   │
-│  │   (Bedrock/  │  │ • visual_memory  │  │                         │   │
-│  │    OpenAI/   │  │ • vector_db      │  │                         │   │
-│  │    Ollama)   │  │                  │  │                         │   │
+│  │   (Anthropic/│  │ • visual_memory  │  │                         │   │
+│  │    Bedrock/  │  │ • vector_db      │  │                         │   │
+│  │    OpenAI)   │  │                  │  │                         │   │
 │  └──────────────┘  └──────────────────┘  └─────────────────────────┘   │
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
