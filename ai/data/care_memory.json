@@ -11,6 +11,12 @@
       "expiration_date": "2025-03-01",
       "status": "expired",
       "scanned_at": "2026-06-05T11:02:28.696162+00:00"
+    },
+    {
+      "name": "vitamin d",
+      "expiration_date": "01/2026",
+      "status": "expired",
+      "scanned_at": "2026-06-06T10:56:06.851914+00:00"
     }
   ],
   "events": [
@@ -29,6 +35,12 @@
         "count": 2
       },
       "timestamp": "2026-06-05T11:08:01.451610+00:00"
+    },
+    {
+      "type": "medicine_scanned",
+      "message": "vitamin d - 01/2026",
+      "data": null,
+      "timestamp": "2026-06-06T10:56:06.853116+00:00"
     }
   ],
   "emergencies": [
@@ -45,6 +57,27 @@
       "timestamp": "2026-06-05T11:08:01.452091+00:00"
     }
   ],
-  "medicine_schedule": [],
-  "daily_summaries": []
+  "medicine_schedule": [
+    {
+      "id": "4944c9f6",
+      "medicine_name": "vitamin d",
+      "dose": "1 tablet",
+      "times": [
+        "09:00"
+      ],
+      "notes": "take with food",
+      "active": true,
+      "created_at": "2026-06-06T10:59:27.533160+00:00"
+    }
+  ],
+  "daily_summaries": [],
+  "briefings": [],
+  "profile": {
+    "name": "",
+    "age": null,
+    "caregiver_name": "",
+    "caregiver_contact": "",
+    "reminder_voice_enabled": true,
+    "notes": []
+  }
 }
