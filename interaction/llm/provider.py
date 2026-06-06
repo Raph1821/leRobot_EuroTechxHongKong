@@ -358,17 +358,20 @@ def create_llm_provider(
     """Factory — create an LLM provider from env config.
 
     Args:
-        provider: "bedrock", "openai", or None (auto-detect from env).
+        provider: "bedrock", "openai", "anthropic", or None (auto-detect from env).
         **kwargs: passed to the provider constructor.
 
     Env detection logic:
-        - If AWS_ACCESS_KEY_ID is set and OPENAI_API_KEY is not → bedrock
+        - LLM_PROVIDER env var takes priority.
+        - If ANTHROPIC_API_KEY is set → anthropic
         - If OPENAI_API_KEY is set → openai
-        - Explicit LLM_PROVIDER env var overrides.
+        - If AWS_ACCESS_KEY_ID is set → bedrock
     """
     p = provider or os.environ.get("LLM_PROVIDER", "").lower()
     if not p:
-        if os.environ.get("OPENAI_API_KEY"):
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            p = "anthropic"
+        elif os.environ.get("OPENAI_API_KEY"):
             p = "openai"
         else:
             p = "bedrock"
@@ -377,5 +380,140 @@ def create_llm_provider(
         return BedrockProvider(**kwargs)
     elif p in ("openai", "rcp", "ollama"):
         return OpenAIProvider(**kwargs)
+    elif p == "anthropic":
+        return AnthropicProvider(**kwargs)
     else:
-        raise ValueError(f"Unknown LLM provider: {p!r}. Use 'bedrock' or 'openai'.")
+        raise ValueError(f"Unknown LLM provider: {p!r}. Use 'anthropic', 'openai', or 'bedrock'.")
+
+
+class AnthropicProvider(LLMProvider):
+    """Native Anthropic SDK provider — uses anthropic Python package directly."""
+
+    def __init__(
+        self,
+        model: str | None = None,
+        api_key: str | None = None,
+        max_tokens: int = 2048,
+    ):
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self.max_tokens = max_tokens
+        self._messages: list[dict] = []
+        self._system: str = ""
+        self._tools: list[dict] = []
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            import anthropic
+            self._client = anthropic.Anthropic(api_key=self.api_key)
+        return self._client
+
+    def _to_anthropic_tools(self, tools: list[ToolSpec]) -> list[dict]:
+        return [
+            {
+                "name": t.name,
+                "description": t.description,
+                "input_schema": t.input_schema,
+            }
+            for t in tools
+        ]
+
+    def stream(
+        self,
+        user_message: str,
+        tools: list[ToolSpec] | None = None,
+        system_prompt: str | None = None,
+        max_tokens: int = 2048,
+        vision_images: list[bytes] | None = None,
+    ) -> Generator[str | ToolCall, None, None]:
+        self._system = system_prompt or ""
+        self._tools = self._to_anthropic_tools(tools) if tools else []
+
+        content: list[dict] | str
+        if vision_images:
+            import base64
+            content = []
+            for img in vision_images:
+                b64 = base64.b64encode(img).decode()
+                content.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/jpeg", "data": b64},
+                })
+            content.append({"type": "text", "text": user_message})
+        else:
+            content = user_message
+
+        self._messages = [{"role": "user", "content": content}]
+        yield from self._run_turn(max_tokens)
+
+    def submit_tool_results(
+        self, results: list[ToolResult]
+    ) -> Generator[str | ToolCall, None, None]:
+        tool_results = []
+        for r in results:
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": r.tool_call_id,
+                "content": r.content,
+            })
+        self._messages.append({"role": "user", "content": tool_results})
+        yield from self._run_turn(self.max_tokens)
+
+    def _run_turn(self, max_tokens: int) -> Generator[str | ToolCall, None, None]:
+        client = self._get_client()
+
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": self._messages,
+            "max_tokens": max_tokens,
+        }
+        if self._system:
+            kwargs["system"] = self._system
+        if self._tools:
+            kwargs["tools"] = self._tools
+
+        assistant_content: list[dict] = []
+
+        with client.messages.stream(**kwargs) as stream:
+            current_tool: dict[str, Any] = {}
+
+            for event in stream:
+                if event.type == "content_block_start":
+                    if hasattr(event.content_block, "type"):
+                        if event.content_block.type == "tool_use":
+                            current_tool = {
+                                "id": event.content_block.id,
+                                "name": event.content_block.name,
+                                "input_str": "",
+                            }
+
+                elif event.type == "content_block_delta":
+                    if hasattr(event.delta, "text"):
+                        yield event.delta.text
+                    elif hasattr(event.delta, "partial_json"):
+                        current_tool["input_str"] = current_tool.get("input_str", "") + event.delta.partial_json
+
+                elif event.type == "content_block_stop":
+                    if current_tool.get("name"):
+                        raw = current_tool.pop("input_str", "") or "{}"
+                        try:
+                            tool_input = json.loads(raw)
+                        except Exception:
+                            tool_input = {}
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": current_tool["id"],
+                            "name": current_tool["name"],
+                            "input": tool_input,
+                        })
+                        yield ToolCall(
+                            id=current_tool["id"],
+                            name=current_tool["name"],
+                            arguments=tool_input,
+                        )
+                        current_tool = {}
+
+        # Build message history from streamed text
+        final_message = stream.get_final_message()
+        self._messages.append({"role": "assistant", "content": final_message.content})
