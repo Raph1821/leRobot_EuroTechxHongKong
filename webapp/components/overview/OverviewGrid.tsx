@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { JOINTS, radToDeg } from "@/lib/joints";
+import { useCameraLive } from "@/lib/useCameraLive";
 import { useJoints } from "@/lib/jointStore";
 import { ROLE_LABELS, useRole, type Role } from "@/lib/role";
 import { PATIENTS } from "@/lib/patients";
@@ -72,16 +73,15 @@ const RobotMiniViewer = dynamic(() => import("@/components/RobotMiniViewer"), {
 });
 
 function CameraBody() {
-  const [live, setLive] = useState(false);
+  const { live, streamKey, STREAM_URL } = useCameraLive();
   return (
     <div className="relative h-full min-h-[80px] overflow-hidden rounded-xl bg-ink">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="http://localhost:8000/camera/stream"
+        key={streamKey}
+        src={STREAM_URL}
         alt="Camera preview"
         className="h-full w-full object-cover"
-        onLoad={() => setLive(true)}
-        onError={() => setLive(false)}
       />
       {!live && (
         <div className="absolute inset-0 bg-ink bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.08),transparent_60%)]" />

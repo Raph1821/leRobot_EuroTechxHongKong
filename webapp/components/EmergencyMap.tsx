@@ -3,13 +3,8 @@
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from "react-leaflet";
 
-export type Hospital = {
-  id: number;
-  name: string;
-  lat: number;
-  lon: number;
-  distance: number; // km from home
-};
+export type { Hospital } from "@/lib/hospitals";
+import type { Hospital } from "@/lib/hospitals";
 
 export default function EmergencyMap({
   home,

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Siren, MapPin, Phone, TriangleAlert } from "lucide-react";
-import type { Hospital } from "@/components/EmergencyMap";
+import { HOME, HOSPITALS } from "@/lib/hospitals";
 
 // Leaflet touches `window` → client-only
 const EmergencyMap = dynamic(() => import("@/components/EmergencyMap"), {
@@ -15,67 +14,11 @@ const EmergencyMap = dynamic(() => import("@/components/EmergencyMap"), {
   ),
 });
 
-// Home = TUM Garching (Boltzmannstraße 15, 85748 Garching bei München)
-const HOME = { lat: 48.2656, lon: 11.6699 };
-
-function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
-
 export default function EmergencyPage() {
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
-
-  useEffect(() => {
-    const query = `[out:json][timeout:25];
-(node["amenity"="hospital"](around:20000,${HOME.lat},${HOME.lon});
- way["amenity"="hospital"](around:20000,${HOME.lat},${HOME.lon});
-);
-out center 40;`;
-    fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: query,
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const list: Hospital[] = (data.elements ?? [])
-          .map((el: { id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: { name?: string } }) => {
-            const lat = el.lat ?? el.center?.lat;
-            const lon = el.lon ?? el.center?.lon;
-            if (lat == null || lon == null) return null;
-            return {
-              id: el.id,
-              name: el.tags?.name ?? "Hospital",
-              lat,
-              lon,
-              distance: haversine(HOME, { lat, lon }),
-            };
-          })
-          .filter((h: Hospital | null): h is Hospital => h !== null)
-          // dedupe by name, keep closest
-          .sort((a: Hospital, b: Hospital) => a.distance - b.distance);
-        const seen = new Set<string>();
-        const deduped = list.filter((h: Hospital) => {
-          if (seen.has(h.name)) return false;
-          seen.add(h.name);
-          return true;
-        });
-        setHospitals(deduped);
-        setStatus("ok");
-      })
-      .catch(() => setStatus("error"));
-  }, []);
-
+  // hospitals are frozen static data (captured once from OpenStreetMap)
+  const hospitals = HOSPITALS;
   const nearest = hospitals[0] ?? null;
-  const nearestId = useMemo(() => nearest?.id ?? null, [nearest]);
+  const nearestId = nearest?.id ?? null;
 
   return (
     <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_360px]">
@@ -104,8 +47,6 @@ out center 40;`;
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           <div className="mb-3 flex items-center justify-between text-xs uppercase tracking-[0.15em] text-ink-soft">
             <span>Nearest hospitals · Munich</span>
-            {status === "loading" && <span>loading…</span>}
-            {status === "error" && <span className="text-coral">offline</span>}
           </div>
 
           {nearest && (

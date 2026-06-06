@@ -1,14 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Maximize2, Camera as Cam, Crosshair } from "lucide-react";
-
-const STREAM_URL = "http://localhost:8000/camera/stream";
-const SNAPSHOT_URL = "http://localhost:8000/camera/snapshot";
+import { useCameraLive } from "@/lib/useCameraLive";
 
 export default function CameraPage() {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [live, setLive] = useState(false);
+  const { live, streamKey, STREAM_URL, SNAPSHOT_URL } = useCameraLive();
 
   const snapshot = async () => {
     if (!live) return;
@@ -39,14 +37,13 @@ export default function CameraPage() {
         ref={frameRef}
         className="relative h-full overflow-hidden rounded-2xl border border-hairline bg-ink"
       >
-        {/* Always keep the img in the DOM so the MJPEG connection stays alive */}
+        {/* MJPEG stream — keyed so it reconnects when the backend recovers */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          key={streamKey}
           src={STREAM_URL}
           alt="Robot camera"
           className="h-full w-full object-cover"
-          onLoad={() => setLive(true)}
-          onError={() => setLive(false)}
         />
 
         {/* Offline overlay — covers the img when stream is not yet live */}

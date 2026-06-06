@@ -10,6 +10,9 @@ import { useCallback, useEffect, useState } from "react";
 
 const BASE = process.env.NEXT_PUBLIC_CAREAI_URL || "http://localhost:8000";
 
+// base URL of the CareAI backend (camera + API), shared with the camera hook
+export const CAREAI_URL = BASE;
+
 export type CareMedicine = {
   name: string;
   expiration_date?: string;
