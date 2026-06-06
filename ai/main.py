@@ -145,7 +145,7 @@ def _open_camera(index: int, width: int = 1920, height: int = 1080):
 
 
 def _rotate_frame(frame, rotate: int):
-    """Rotate a frame by 0/90/180/270 degrees to correct a mismounted camera."""
+    """Rotate a frame by 90/180/270 degrees to correct a mismounted camera."""
     if rotate == 90:
         return cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
     if rotate == 180:
@@ -155,27 +155,9 @@ def _rotate_frame(frame, rotate: int):
     return frame
 
 
-def _letterbox(frame, target_w: int = 1280, target_h: int = 720):
-    """Fit a frame into a fixed target size preserving aspect ratio (black bars).
-
-    Keeps a consistent landscape window even when the frame is rotated to
-    portrait — no stretching/distortion.
-    """
-    import numpy as np
-    h, w = frame.shape[:2]
-    scale = min(target_w / w, target_h / h)
-    nw, nh = int(w * scale), int(h * scale)
-    resized = cv2.resize(frame, (nw, nh))
-    canvas = np.zeros((target_h, target_w, 3), dtype=frame.dtype)
-    x = (target_w - nw) // 2
-    y = (target_h - nh) // 2
-    canvas[y:y + nh, x:x + nw] = resized
-    return canvas
-
-
 def main(ocr_camera: int = 1, patrol_camera: int | None = None,
-         ocr_rotate: int = 0, patrol_rotate: int = 0,
-         use_realsense: bool = False, expected_pills: int | None = None) -> None:
+         use_realsense: bool = False, expected_pills: int | None = None,
+         patrol_rotate: int = 270) -> None:
     """Run the CareAI loop.
 
     Three-camera setup (full hackathon plan):
@@ -183,7 +165,8 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
       - patrol_camera: wrist camera → patrol + fall detection (PATROL mode)
       - RealSense:     overhead → pill counting / dose verification (DOSAGE mode)
 
-    Rotation (0/90/180/270) corrects a physically mismounted camera.
+    patrol_rotate: degrees (0/90/180/270) to rotate the wrist camera frame to
+    correct its physical mounting. Applied only to the patrol camera.
     If patrol_camera is None, the same camera is used for both (single-cam fallback).
     """
     global DEBUG
@@ -312,17 +295,18 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
         # SORTING uses the clear OCR webcam; PATROL uses the wrist camera if available.
         if current_mode == AppMode.PATROL and cap_patrol is not None:
             active_cap = cap_patrol
-            rotate = patrol_rotate
+            is_patrol_cam = True
         else:
             active_cap = cap_ocr
-            rotate = ocr_rotate if active_cap is cap_ocr else patrol_rotate
+            is_patrol_cam = False
 
         ret, frame = active_cap.read()
         if not ret:
             print("Error: failed to read frame from camera.", file=sys.stderr)
             break
-        if rotate:
-            frame = _rotate_frame(frame, rotate)
+        # Rotate only the patrol/wrist camera to correct its mounting.
+        if is_patrol_cam and patrol_rotate:
+            frame = _rotate_frame(frame, patrol_rotate)
         set_latest_frame(frame)
 
         if current_mode == AppMode.SORTING:
@@ -385,10 +369,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
         except queue.Empty:
             pass
 
-        # Letterbox the display to a consistent landscape window (no distortion).
-        # Detection still uses the full-resolution `frame`; this only affects the view.
-        display_frame = _letterbox(frame) if rotate in (90, 270) else frame
-        cv2.imshow("Carebot AI - Live Feed", display_frame)
+        cv2.imshow("Carebot AI - Live Feed", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
@@ -600,11 +581,6 @@ if __name__ == "__main__":
     parser.add_argument("--patrol-camera", type=int, default=None,
                         help="Camera index for patrol + fall detection (wrist camera). "
                              "If omitted, the OCR camera is used for both.")
-    parser.add_argument("--ocr-rotate", type=int, default=0, choices=[0, 90, 180, 270],
-                        help="Rotate the OCR camera frame to correct mounting (degrees).")
-    parser.add_argument("--patrol-rotate", type=int, default=270, choices=[0, 90, 180, 270],
-                        help="Rotate the patrol/wrist camera frame to correct mounting (degrees). "
-                             "Default 270 — the wrist camera is mounted rotated on our SO-101.")
     # Backward-compat: --camera still works as the OCR camera
     parser.add_argument("--camera", type=int, default=None,
                         help="(deprecated) alias for --ocr-camera")
@@ -612,9 +588,11 @@ if __name__ == "__main__":
                         help="Enable DOSAGE mode (Intel RealSense + pill counting). Press 3 to use it.")
     parser.add_argument("--expected-pills", type=int, default=None,
                         help="Prescribed pill count to verify against in DOSAGE mode.")
+    parser.add_argument("--patrol-rotate", type=int, default=270, choices=[0, 90, 180, 270],
+                        help="Rotate the patrol/wrist camera frame (degrees) to correct mounting. Default 270.")
     args = parser.parse_args()
 
     ocr_cam = args.camera if args.camera is not None else args.ocr_camera
     main(ocr_camera=ocr_cam, patrol_camera=args.patrol_camera,
-         ocr_rotate=args.ocr_rotate, patrol_rotate=args.patrol_rotate,
-         use_realsense=args.realsense, expected_pills=args.expected_pills)
+         use_realsense=args.realsense, expected_pills=args.expected_pills,
+         patrol_rotate=args.patrol_rotate)
