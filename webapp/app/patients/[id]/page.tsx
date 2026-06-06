@@ -20,6 +20,7 @@ import {
   addSchedule as apiAddSchedule,
   removeSchedule as apiRemoveSchedule,
   usePoll,
+  humanTime,
   type CareEvent,
 } from "@/lib/careApi";
 
@@ -138,7 +139,7 @@ export default function PatientDetailPage() {
           id: `live-${i}`,
           type: careEventType(e),
           message: e.message,
-          time: e.timestamp,
+          time: humanTime(e.timestamp),
           acked: true, // live events come from CareAI; ack is local-only for mocks
         }))
       : events;

@@ -1,14 +1,7 @@
 "use client";
 
 import { TriangleAlert, Bell, MapPin, CheckCircle2, Activity } from "lucide-react";
-import { getEvents, usePoll, type CareEvent } from "@/lib/careApi";
-
-const STATS = [
-  { label: "Doses on time (7d)", value: "98%", sub: "+3% vs last week" },
-  { label: "Pick & place ops", value: "142", sub: "this week" },
-  { label: "Avg response", value: "1.2s", sub: "emergency detect" },
-  { label: "Uptime", value: "99.9%", sub: "30 days" },
-];
+import { getEvents, usePoll, humanTime, type CareEvent } from "@/lib/careApi";
 
 const CHART = [40, 65, 50, 80, 60, 95, 72];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -37,19 +30,6 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4 p-6">
-      {/* stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {STATS.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-hairline bg-paper p-4">
-            <div className="text-xs text-ink-soft">{s.label}</div>
-            <div className="font-display mt-1 text-3xl font-extrabold tracking-tight">
-              {s.value}
-            </div>
-            <div className="mt-1 text-[11px] text-ink-soft">{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
         {/* chart */}
         <div className="rounded-2xl border border-hairline bg-paper p-5">
@@ -88,7 +68,7 @@ export default function ReportsPage() {
                     <span className="flex-1">
                       <span className="block text-sm">{e.message}</span>
                       <span className="text-[11px] text-ink-soft">
-                        {e.type} · {e.timestamp}
+                        {e.type} · {humanTime(e.timestamp)}
                       </span>
                     </span>
                   </li>

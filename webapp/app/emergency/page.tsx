@@ -15,8 +15,8 @@ const EmergencyMap = dynamic(() => import("@/components/EmergencyMap"), {
   ),
 });
 
-// CDTM venue, Marsstraße 20, Munich
-const HOME = { lat: 48.1488, lon: 11.5556 };
+// Home = TUM Garching (Boltzmannstraße 15, 85748 Garching bei München)
+const HOME = { lat: 48.2656, lon: 11.6699 };
 
 function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const R = 6371;
@@ -36,8 +36,8 @@ export default function EmergencyPage() {
 
   useEffect(() => {
     const query = `[out:json][timeout:25];
-(node["amenity"="hospital"](around:7000,${HOME.lat},${HOME.lon});
- way["amenity"="hospital"](around:7000,${HOME.lat},${HOME.lon});
+(node["amenity"="hospital"](around:20000,${HOME.lat},${HOME.lon});
+ way["amenity"="hospital"](around:20000,${HOME.lat},${HOME.lon});
 );
 out center 40;`;
     fetch("https://overpass-api.de/api/interpreter", {

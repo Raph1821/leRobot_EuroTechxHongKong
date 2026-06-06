@@ -61,7 +61,8 @@ export default function MessagesPage() {
     const text = draft.trim();
     if (!text) return;
     const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const h12 = now.getHours() % 12 || 12;
+    const time = `${h12}:${String(now.getMinutes()).padStart(2, "0")} ${now.getHours() < 12 ? "AM" : "PM"}`;
     const next = [...messages, { from: role, text, time }];
     setMessages(next);
     saveThread(activeId, next);
@@ -69,7 +70,13 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-[260px_1fr]">
+    <div
+      className={
+        can.managePatients
+          ? "grid h-full grid-cols-1 lg:grid-cols-[260px_1fr]"
+          : "flex h-full flex-col"
+      }
+    >
       {/* threads (care team only) */}
       {can.managePatients && (
         <aside className="hidden border-r border-hairline bg-paper-2/30 p-3 lg:block">
@@ -96,7 +103,7 @@ export default function MessagesPage() {
       )}
 
       {/* conversation */}
-      <div className="flex min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-hairline px-5 py-3 text-sm text-ink-soft">
           {can.managePatients
             ? `Thread · ${PATIENTS.find((p) => p.id === activeId)?.name}`

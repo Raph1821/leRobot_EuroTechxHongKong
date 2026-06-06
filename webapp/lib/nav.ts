@@ -25,7 +25,6 @@ export type NavItem = {
 export const NAV: NavItem[] = [
   // ── patient space (the original dashboard) ──
   { href: "/", label: "Overview", icon: LayoutDashboard, roles: ["patient"] },
-  { href: "/control", label: "Simulation & Control", icon: Bot, roles: ["patient"] },
   { href: "/camera", label: "Camera", icon: Video, roles: ["patient"] },
   { href: "/interaction", label: "Interaction", icon: MessageCircle, roles: ["patient"] },
   { href: "/schedule", label: "Schedule", icon: CalendarDays, roles: ["patient"] },
@@ -34,6 +33,7 @@ export const NAV: NavItem[] = [
   { href: "/emergency", label: "Emergency", icon: Siren, roles: ["patient"] },
   // ── care team spaces ──
   { href: "/patients", label: "Patients", icon: Users, roles: ["nurse", "doctor"] },
+  { href: "/control", label: "Simulation & Control", icon: Bot, roles: ["nurse", "doctor"] },
   // ── shared ──
   { href: "/messages", label: "Messages", icon: MessageSquare, roles: ["patient", "nurse", "doctor"] },
 ];

@@ -30,6 +30,7 @@
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
+  --font-logo: var(--font-logo);
   --font-cjk: "Noto Serif TC", serif;
 }
 
@@ -57,6 +58,9 @@ body {
 }
 .font-cjk {
   font-family: var(--font-cjk);
+}
+.font-logo {
+  font-family: var(--font-logo), var(--font-display), system-ui, sans-serif;
 }
 
 .rule {

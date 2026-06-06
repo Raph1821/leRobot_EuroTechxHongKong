@@ -4,7 +4,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import RGL, { type Layout } from "react-grid-layout";
 import {
@@ -15,7 +15,6 @@ import {
   Activity,
   TriangleAlert,
   GripVertical,
-  ArrowUpRight,
   MessageCircle,
   MessageSquare,
   Siren,
@@ -25,9 +24,8 @@ import {
 } from "lucide-react";
 import { JOINTS, radToDeg } from "@/lib/joints";
 import { useJoints } from "@/lib/jointStore";
-import { ROLE_LABELS, type Role } from "@/lib/role";
-
-const STORAGE_KEY = "overview-layout-v6";
+import { ROLE_LABELS, useRole, type Role } from "@/lib/role";
+import { PATIENTS } from "@/lib/patients";
 
 // RGL's shipped types diverge from @types; pin exactly the props we use.
 type GridProps = {
@@ -41,6 +39,10 @@ type GridProps = {
   isBounded?: boolean;
   className?: string;
   onLayoutChange: (layout: Layout) => void;
+  onDragStart?: () => void;
+  onDragStop?: () => void;
+  onResizeStart?: () => void;
+  onResizeStop?: () => void;
   children: React.ReactNode;
 };
 const GridLayout = RGL as unknown as React.ComponentType<GridProps>;
@@ -129,7 +131,7 @@ function MessagesBody() {
   const [last, setLast] = useState<{ from: Role; text: string; time: string } | null>(null);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("elda-chat-margarethe-keller");
+      const raw = localStorage.getItem(`elda-chat-${PATIENTS[0].id}`);
       if (raw) {
         const msgs = JSON.parse(raw);
         if (Array.isArray(msgs) && msgs.length) {
@@ -302,7 +304,18 @@ const CARDS: Card[] = [
 
 const byId = (id: string) => CARDS.find((c) => c.id === id)!;
 
-const DEFAULT_LAYOUT: Layout = [
+// patients don't get the arm-control widget; care team does
+const PATIENT_DEFAULT_LAYOUT: Layout = [
+  { i: "camera", x: 0, y: 0, w: 5, h: 2, minW: 2, minH: 2 },
+  { i: "dose", x: 5, y: 0, w: 3, h: 1, minW: 3, minH: 1 },
+  { i: "reports", x: 8, y: 0, w: 4, h: 1, minW: 4, minH: 1 },
+  { i: "messages", x: 5, y: 1, w: 4, h: 1, minW: 2, minH: 1 },
+  { i: "interaction", x: 9, y: 1, w: 3, h: 1, minW: 2, minH: 1 },
+  { i: "meds", x: 0, y: 2, w: 7, h: 2, minW: 2, minH: 2 },
+  { i: "emergency", x: 7, y: 2, w: 5, h: 1, minW: 2, minH: 1 },
+];
+
+const CARE_DEFAULT_LAYOUT: Layout = [
   { i: "control", x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
   { i: "camera", x: 6, y: 0, w: 6, h: 2, minW: 2, minH: 2 },
   { i: "meds", x: 0, y: 2, w: 5, h: 2, minW: 2, minH: 2 },
@@ -313,9 +326,26 @@ const DEFAULT_LAYOUT: Layout = [
   { i: "emergency", x: 0, y: 4, w: 5, h: 1, minW: 2, minH: 1 },
 ];
 
-function Widget({ card }: { card: Card }) {
+function Widget({
+  card,
+  interacting,
+}: {
+  card: Card;
+  interacting: React.RefObject<boolean>;
+}) {
+  const router = useRouter();
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-hairline bg-paper p-5">
+    <div
+      role="link"
+      aria-label={`Open ${card.title}`}
+      onClick={(e) => {
+        // a drag/resize (or a click on the grip) is not a navigation
+        if (interacting.current) return;
+        if ((e.target as HTMLElement).closest(".widget-drag")) return;
+        router.push(card.href);
+      }}
+      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-hairline bg-paper p-5 transition-colors hover:border-ink/30"
+    >
       <div className="mb-4 flex items-center justify-between">
         <span className="flex items-center gap-2.5">
           <span
@@ -328,21 +358,12 @@ function Widget({ card }: { card: Card }) {
             {card.title}
           </span>
         </span>
-        <span className="flex items-center gap-1">
-          <button
-            aria-label="Drag to move"
-            className="widget-drag cursor-grab touch-none rounded-md p-1 text-ink-soft/50 hover:text-ink active:cursor-grabbing"
-          >
-            <GripVertical size={15} />
-          </button>
-          <Link
-            href={card.href}
-            aria-label={`Open ${card.title}`}
-            className="rounded-md p-1 text-ink-soft transition-colors hover:bg-paper-2 hover:text-ink"
-          >
-            <ArrowUpRight size={16} />
-          </Link>
-        </span>
+        <button
+          aria-label="Drag to move"
+          className="widget-drag cursor-grab touch-none rounded-md p-1 text-ink-soft/50 hover:text-ink active:cursor-grabbing"
+        >
+          <GripVertical size={15} />
+        </button>
       </div>
       <div className="min-h-0 flex-1">{card.body}</div>
     </div>
@@ -351,22 +372,44 @@ function Widget({ card }: { card: Card }) {
 
 export default function OverviewGrid() {
   const ref = useRef<HTMLDivElement>(null);
+  const { role } = useRole();
   const [width, setWidth] = useState(0);
-  const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
+  // true while a widget is being dragged/resized — suppresses the click-to-open
+  const interacting = useRef(false);
+  const beginInteract = () => {
+    interacting.current = true;
+  };
+  const endInteract = () => {
+    // the click event fires right after mouseup; release on the next tick
+    setTimeout(() => {
+      interacting.current = false;
+    }, 0);
+  };
 
-  // restore saved layout
+  const cards = role === "patient" ? CARDS.filter((c) => c.id !== "control") : CARDS;
+  const defaultLayout = role === "patient" ? PATIENT_DEFAULT_LAYOUT : CARE_DEFAULT_LAYOUT;
+  const storageKey = `overview-layout-v7-${role}`;
+
+  const [layout, setLayout] = useState<Layout>(defaultLayout);
+
+  // restore saved layout (per role)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed: Layout = JSON.parse(saved);
-        const valid = parsed.filter((l) => CARDS.some((c) => c.id === l.i));
-        if (valid.length === CARDS.length) setLayout(valid);
+        const valid = parsed.filter((l) => cards.some((c) => c.id === l.i));
+        if (valid.length === cards.length) {
+          setLayout(valid);
+          return;
+        }
       }
     } catch {
       /* ignore */
     }
-  }, []);
+    setLayout(defaultLayout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   // measure container width (WidthProvider isn't exported from RGL's ESM build)
   useEffect(() => {
@@ -382,7 +425,7 @@ export default function OverviewGrid() {
   const onLayoutChange = (next: Layout) => {
     setLayout(next);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
       /* ignore */
     }
@@ -401,11 +444,15 @@ export default function OverviewGrid() {
           containerPadding={[8, 8]}
           draggableHandle=".widget-drag"
           onLayoutChange={onLayoutChange}
+          onDragStart={beginInteract}
+          onDragStop={endInteract}
+          onResizeStart={beginInteract}
+          onResizeStop={endInteract}
           isBounded
         >
           {layout.map((l) => (
             <div key={l.i}>
-              <Widget card={byId(l.i)} />
+              <Widget card={byId(l.i)} interacting={interacting} />
             </div>
           ))}
         </GridLayout>

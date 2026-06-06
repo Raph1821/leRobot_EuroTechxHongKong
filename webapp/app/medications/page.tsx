@@ -1,7 +1,8 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { getMedicines, usePoll } from "@/lib/careApi";
+import { getMedicines, usePoll, humanTime } from "@/lib/careApi";
+import { useRole } from "@/lib/role";
 
 type Med = {
   name: string;
@@ -36,6 +37,7 @@ function careChip(status?: string) {
 }
 
 export default function MedicationsPage() {
+  const { can } = useRole();
   const { data, online } = usePoll(getMedicines, 8000);
   const live = online && Array.isArray(data);
 
@@ -47,9 +49,11 @@ export default function MedicationsPage() {
             ? `Scanned by Elda · ${data!.length} medications`
             : `Inventory · ${MEDS.length} medications`}
         </p>
-        <button className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-ink/85">
-          <Plus size={14} /> Add medication
-        </button>
+        {can.prescribe && (
+          <button className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-ink/85">
+            <Plus size={14} /> Add medication
+          </button>
+        )}
       </div>
 
       {live ? (
@@ -83,7 +87,7 @@ export default function MedicationsPage() {
                     {chip.label}
                   </span>
                 </span>
-                <span className="text-[12px] text-ink-soft">{m.scanned_at ?? ""}</span>
+                <span className="text-[12px] text-ink-soft">{humanTime(m.scanned_at)}</span>
               </div>
             );
           })}

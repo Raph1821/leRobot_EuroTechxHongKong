@@ -55,13 +55,10 @@ export default function Sidebar() {
     <aside className="flex w-60 flex-none flex-col border-r border-hairline bg-paper">
       {/* brand lockup — echoes the landing */}
       <div className="flex items-center gap-2.5 border-b border-hairline px-5 py-4">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-ink text-xs font-bold text-paper">
-          E
-        </span>
         <div className="leading-tight">
-          <div className="font-display text-sm font-bold tracking-tight">Elda</div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-ink-soft">
-            Elderly care robotics
+          <div className="font-logo text-[70px] leading-none">ELDA</div>
+          <div className="text-[10px] tracking-[0.08em] text-ink-soft">
+            Elderly Care Robotics
           </div>
         </div>
       </div>

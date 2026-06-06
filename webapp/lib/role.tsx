@@ -14,9 +14,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 export type Account = { role: Role; name: string; initials: string };
 
 export const ACCOUNTS: Account[] = [
-  { role: "patient", name: "Margarethe Keller", initials: "MK" },
-  { role: "nurse", name: "Anna Berger", initials: "AB" },
-  { role: "doctor", name: "Dr. Felix Wagner", initials: "FW" },
+  { role: "patient", name: "Mei-Ling Chan", initials: "MC" },
+  { role: "nurse", name: "Yuki Nakamura", initials: "YN" },
+  { role: "doctor", name: "Dr. Wei Lin", initials: "WL" },
 ];
 
 export const accountFor = (role: Role): Account =>
