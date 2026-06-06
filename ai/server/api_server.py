@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from memory.care_memory import CareMemory
+from assistant.llm_client import LLMClient
 
 app = FastAPI(title="CareAI API", version="1.0.0")
 
@@ -20,6 +21,11 @@ app.add_middleware(
 )
 
 memory = CareMemory()
+llm = LLMClient()
+
+
+class AskIn(BaseModel):
+    message: str
 
 
 class ScheduleIn(BaseModel):
@@ -87,3 +93,14 @@ def schedule_delete(schedule_id: str):
     if not removed:
         raise HTTPException(status_code=404, detail="Schedule not found")
     return {"success": True, "schedule_id": schedule_id}
+
+
+@app.post("/assistant/ask")
+def assistant_ask(body: AskIn):
+    _fresh()
+    context = memory.get_context()
+    try:
+        answer = llm.ask(body.message, context=context)
+    except Exception as exc:
+        answer = f"CareAI is unavailable right now. ({exc})"
+    return {"answer": answer}
