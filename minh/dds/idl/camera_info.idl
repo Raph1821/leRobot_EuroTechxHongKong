@@ -1,0 +1,9 @@
+// Camera info IDL
+struct CameraInfo {
+    float focal_len;
+    long stream_id;
+    long frame_num;
+    long width;
+    long height;
+    sequence<octet> data;
+};

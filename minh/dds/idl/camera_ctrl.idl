@@ -1,0 +1,4 @@
+// Camera control input IDL
+struct CameraCtrlInput {
+    float focal_len;
+};

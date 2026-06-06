@@ -1,7 +1,44 @@
-opencv-python==4.10.0.84
+# ═══════════════════════════════════════════════════════════════════
+# Carebot — Unified Requirements
+# EuroTech x Hong Kong Hackathon · Munich 2026
+# ═══════════════════════════════════════════════════════════════════
+
+# ─── OCR & Text Matching (ai module) ───
 paddleocr>=2.7.0
 paddlepaddle>=2.6.0
 rapidfuzz>=3.0.0
+
+# ─── Vision / Detection (minh module) ───
+ultralytics>=8.2.0
+opencv-python>=4.10.0
 mediapipe>=0.10.0
-faster-whisper>=1.0.0
+
+# ─── LLM & Interaction ───
 anthropic>=0.40.0
+openai>=1.0.0
+boto3>=1.34.0
+httpx>=0.27.0
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# ─── Speech ───
+faster-whisper>=1.0.0
+# openai-whisper              # local Whisper (install separately: pip install openai-whisper)
+SpeechRecognition>=3.10.0
+
+# ─── Semantic Memory ───
+chromadb>=0.5.0
+transformers>=4.40.0
+onnxruntime>=1.17.0
+
+# ─── Robot Policy (optional — needs NVIDIA GPU) ───
+# torch>=2.0.0
+# gr00t                       # NVIDIA GR00T N1.7 (installed via Isaac GR00T)
+# lerobot                     # LeRobot SO-101 control
+# holoscan                    # NVIDIA Holoscan for real-time pipeline
+
+# ─── Utilities ───
+pyyaml>=6.0
+numpy>=1.24.0
+Pillow>=9.0.0
+pydantic>=2.0.0

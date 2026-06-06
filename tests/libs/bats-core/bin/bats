@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+# bats-core - Bash Automated Testing System
+# Vendored minimal implementation for CI/local testing
+# Based on bats-core (https://github.com/bats-core/bats-core)
+# License: MIT
+
+set -euo pipefail
+
+BATS_VERSION="1.10.0-vendored"
+BATS_CWD="$(pwd)"
+
+# Colors
+BATS_COLOR_RED='\033[0;31m'
+BATS_COLOR_GREEN='\033[0;32m'
+BATS_COLOR_YELLOW='\033[0;33m'
+BATS_COLOR_NC='\033[0m'
+
+# Counters
+BATS_TEST_COUNT=0
+BATS_PASSED=0
+BATS_FAILED=0
+BATS_SKIPPED=0
+
+# Options
+BATS_FORMATTER="tap"
+
+usage() {
+    cat <<EOF
+Usage: bats [OPTIONS] <test-file> [test-file ...]
+
+Options:
+  -h, --help       Show this help message
+  -v, --version    Show version
+  --tap            Use TAP output format (default)
+  --pretty         Use pretty output format
+  -r, --recursive  Recursively find .bats files in directories
+
+EOF
+}
+
+# Parse a .bats file and extract test names
+extract_tests() {
+    local file="$1"
+    grep -nE '^[[:blank:]]*@test[[:blank:]]+"' "$file" | while IFS= read -r line; do
+        echo "$line" | sed -E 's/^[0-9]+:[[:blank:]]*@test[[:blank:]]+"([^"]+)".*/\1/'
+    done
+}
+
+# Run a single test from a file
+run_test() {
+    local file="$1"
+    local test_name="$2"
+    local test_index="$3"
+
+    local test_dir
+    test_dir="$(cd "$(dirname "$file")" && pwd)"
+
+    # Create temporary test script
+    local tmp_script
+    tmp_script=$(mktemp "${TMPDIR:-/tmp}/bats_test.XXXXXX.bash")
+
+    # Write the preamble with bats built-ins
+    cat > "$tmp_script" <<'PREAMBLE'
+#!/usr/bin/env bash
+
+# bats built-in: run command and capture output/status
+run() {
+    local cmd_output
+    cmd_output=$("$@" 2>&1) && status=$? || status=$?
+    output="$cmd_output"
+    lines=()
+    if [[ -n "$output" ]]; then
+        while IFS= read -r _line; do
+            lines+=("$_line")
+        done <<< "$output"
+    fi
+    return 0
+}
+
+# bats built-in: skip test
+skip() {
+    BATS_TEST_SKIPPED=1
+    exit 77
+}
+
+# Initialize variables
+status=0
+output=""
+lines=()
+BATS_TEST_SKIPPED=0
+PREAMBLE
+
+    # Add load function that resolves relative to the test file directory
+    cat >> "$tmp_script" <<LOADFUNC
+
+# bats load function - resolves relative to test file
+BATS_TEST_DIRNAME="${test_dir}"
+
+load() {
+    local name="\$1"
+    local load_path=""
+
+    # Check relative to test file directory
+    if [[ -f "\${BATS_TEST_DIRNAME}/\${name}" ]]; then
+        load_path="\${BATS_TEST_DIRNAME}/\${name}"
+    elif [[ -f "\${BATS_TEST_DIRNAME}/\${name}.bash" ]]; then
+        load_path="\${BATS_TEST_DIRNAME}/\${name}.bash"
+    elif [[ -f "\${name}" ]]; then
+        load_path="\${name}"
+    elif [[ -f "\${name}.bash" ]]; then
+        load_path="\${name}.bash"
+    fi
+
+    if [[ -n "\$load_path" ]]; then
+        source "\$load_path"
+    else
+        echo "ERROR: load failed - cannot find '\${name}' relative to \${BATS_TEST_DIRNAME}" >&2
+        return 1
+    fi
+}
+LOADFUNC
+
+    # Now extract everything from the .bats file EXCEPT @test blocks we don't want.
+    # Strategy: Convert the .bats file into a valid bash script by:
+    # 1. Keeping all non-@test content (load statements, helpers, setup, teardown)
+    # 2. Converting @test "name" { ... } blocks into functions
+    # 3. Only calling the target test function
+
+    # Extract load statements, setup, teardown, and the target test
+    local in_test=0
+    local current_test=""
+    local brace_depth=0
+    local target_func_name="bats_target_test"
+
+    while IFS= read -r line; do
+        # Detect start of a @test block
+        if [[ "$line" =~ ^[[:blank:]]*@test[[:blank:]]+\"([^\"]+)\"[[:blank:]]*\{[[:blank:]]* ]]; then
+            current_test="${BASH_REMATCH[1]}"
+            in_test=1
+            brace_depth=1
+            if [[ "$current_test" == "$test_name" ]]; then
+                echo "${target_func_name}() {" >> "$tmp_script"
+            else
+                echo "_skip_test_$(echo "$current_test" | tr ' ' '_' | tr -cd 'a-zA-Z0-9_')() {" >> "$tmp_script"
+            fi
+            continue
+        fi
+
+        if [[ $in_test -eq 1 ]]; then
+            # Count braces to find end of test
+            local opens="${line//[^\{]/}"
+            local closes="${line//[^\}]/}"
+            brace_depth=$((brace_depth + ${#opens} - ${#closes}))
+
+            if [[ $brace_depth -le 0 ]]; then
+                echo "}" >> "$tmp_script"
+                echo "" >> "$tmp_script"
+                in_test=0
+                current_test=""
+            else
+                echo "$line" >> "$tmp_script"
+            fi
+        else
+            # Not in a test block - include as-is (load, setup, teardown, helpers)
+            # Skip shebang lines
+            if [[ "$line" =~ ^#! ]]; then
+                continue
+            fi
+            echo "$line" >> "$tmp_script"
+        fi
+    done < "$file"
+
+    # Add test execution at the bottom
+    cat >> "$tmp_script" <<'EXEC'
+
+# Run setup if defined
+if declare -f setup > /dev/null 2>&1; then
+    setup
+fi
+
+# Run the target test
+bats_target_test
+
+# Run teardown if defined
+if declare -f teardown > /dev/null 2>&1; then
+    teardown
+fi
+EXEC
+
+    chmod +x "$tmp_script"
+
+    # Execute the test
+    local test_output
+    local test_status
+    test_output=$(bash "$tmp_script" 2>&1) && test_status=$? || test_status=$?
+
+    rm -f "$tmp_script"
+
+    # Handle result
+    if [[ $test_status -eq 77 ]]; then
+        BATS_SKIPPED=$((BATS_SKIPPED + 1))
+        if [[ "$BATS_FORMATTER" == "pretty" ]]; then
+            printf " ${BATS_COLOR_YELLOW}-${BATS_COLOR_NC} %s (skipped)\n" "$test_name"
+        else
+            echo "ok ${test_index} ${test_name} # skip"
+        fi
+    elif [[ $test_status -eq 0 ]]; then
+        BATS_PASSED=$((BATS_PASSED + 1))
+        if [[ "$BATS_FORMATTER" == "pretty" ]]; then
+            printf " ${BATS_COLOR_GREEN}✓${BATS_COLOR_NC} %s\n" "$test_name"
+        else
+            echo "ok ${test_index} ${test_name}"
+        fi
+    else
+        BATS_FAILED=$((BATS_FAILED + 1))
+        if [[ "$BATS_FORMATTER" == "pretty" ]]; then
+            printf " ${BATS_COLOR_RED}✗${BATS_COLOR_NC} %s\n" "$test_name"
+            if [[ -n "$test_output" ]]; then
+                echo "$test_output" | head -20 | sed 's/^/   /'
+            fi
+        else
+            echo "not ok ${test_index} ${test_name}"
+            if [[ -n "$test_output" ]]; then
+                echo "$test_output" | head -20 | sed 's/^/# /'
+            fi
+        fi
+    fi
+}
+
+# Main
+BATS_FILES=()
+BATS_RECURSIVE=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "bats-core ${BATS_VERSION}"
+            exit 0
+            ;;
+        --tap)
+            BATS_FORMATTER="tap"
+            shift
+            ;;
+        --pretty)
+            BATS_FORMATTER="pretty"
+            shift
+            ;;
+        -r|--recursive)
+            BATS_RECURSIVE=1
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -d "$1" ]]; then
+                if [[ $BATS_RECURSIVE -eq 1 ]]; then
+                    while IFS= read -r -d '' f; do
+                        BATS_FILES+=("$f")
+                    done < <(find "$1" -name "*.bats" -print0 | sort -z)
+                else
+                    while IFS= read -r -d '' f; do
+                        BATS_FILES+=("$f")
+                    done < <(find "$1" -maxdepth 1 -name "*.bats" -print0 | sort -z)
+                fi
+            elif [[ -f "$1" ]]; then
+                BATS_FILES+=("$1")
+            else
+                echo "Error: $1 is not a file or directory" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#BATS_FILES[@]} -eq 0 ]]; then
+    echo "Error: No test files specified" >&2
+    usage
+    exit 1
+fi
+
+# Count total tests
+for file in "${BATS_FILES[@]}"; do
+    while IFS= read -r test_name; do
+        BATS_TEST_COUNT=$((BATS_TEST_COUNT + 1))
+    done < <(extract_tests "$file")
+done
+
+# Print TAP header
+if [[ "$BATS_FORMATTER" == "tap" ]]; then
+    echo "1..${BATS_TEST_COUNT}"
+fi
+
+# Run tests
+test_index=0
+for file in "${BATS_FILES[@]}"; do
+    if [[ "$BATS_FORMATTER" == "pretty" ]]; then
+        echo ""
+        echo " $(basename "$file")"
+    fi
+    while IFS= read -r test_name; do
+        test_index=$((test_index + 1))
+        run_test "$file" "$test_name" "$test_index"
+    done < <(extract_tests "$file")
+done
+
+# Print summary
+if [[ "$BATS_FORMATTER" == "pretty" ]]; then
+    echo ""
+    echo "${BATS_PASSED} passed, ${BATS_FAILED} failed, ${BATS_SKIPPED} skipped (${BATS_TEST_COUNT} tests)"
+fi
+
+# Exit with failure if any tests failed
+if [[ $BATS_FAILED -gt 0 ]]; then
+    exit 1
+fi
+
+exit 0
