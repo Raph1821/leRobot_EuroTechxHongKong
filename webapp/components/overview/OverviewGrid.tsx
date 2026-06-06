@@ -16,12 +16,18 @@ import {
   TriangleAlert,
   GripVertical,
   ArrowUpRight,
+  MessageCircle,
+  MessageSquare,
+  Siren,
+  Mic,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 import { JOINTS, radToDeg } from "@/lib/joints";
 import { useJoints } from "@/lib/jointStore";
+import { ROLE_LABELS, type Role } from "@/lib/role";
 
-const STORAGE_KEY = "overview-layout-v5";
+const STORAGE_KEY = "overview-layout-v6";
 
 // RGL's shipped types diverge from @types; pin exactly the props we use.
 type GridProps = {
@@ -96,6 +102,78 @@ function ControlBody() {
         </div>
       </div>
       <JointChips />
+    </div>
+  );
+}
+
+// teaser for the Elda voice/text assistant
+function InteractionBody() {
+  return (
+    <div className="flex h-full items-center gap-3">
+      <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-harbour/10 text-harbour">
+        <Mic size={18} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm font-medium">Ask Elda anything</div>
+        <div className="truncate text-[12px] text-ink-soft">
+          &ldquo;What medicines do I take today?&rdquo;
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// last message of the care-team thread (shared with /messages via localStorage)
+function MessagesBody() {
+  const [last, setLast] = useState<{ from: Role; text: string; time: string } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("elda-chat-margarethe-keller");
+      if (raw) {
+        const msgs = JSON.parse(raw);
+        if (Array.isArray(msgs) && msgs.length) {
+          setLast(msgs[msgs.length - 1]);
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    setLast({
+      from: "doctor",
+      text: "Noted. Let's keep an eye on it, I'll check your schedule.",
+      time: "09:30",
+    });
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col justify-center">
+      {last ? (
+        <>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">
+            {ROLE_LABELS[last.from] ?? last.from} · {last.time}
+          </div>
+          <div className="mt-1 line-clamp-2 text-sm">{last.text}</div>
+        </>
+      ) : (
+        <div className="text-sm text-ink-soft">No messages yet.</div>
+      )}
+    </div>
+  );
+}
+
+function EmergencyBody() {
+  return (
+    <div className="flex h-full items-center gap-3">
+      <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-coral/12 text-coral">
+        <Siren size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium">All clear</div>
+        <div className="flex items-center gap-1 truncate text-[12px] text-ink-soft">
+          <MapPin size={11} /> Nearest hospital 0.4 km
+        </div>
+      </div>
     </div>
   );
 }
@@ -195,6 +273,30 @@ const CARDS: Card[] = [
       </div>
     ),
   },
+  {
+    id: "interaction",
+    href: "/interaction",
+    title: "Interaction",
+    Icon: MessageCircle,
+    accent: "var(--harbour)",
+    body: <InteractionBody />,
+  },
+  {
+    id: "messages",
+    href: "/messages",
+    title: "Messages",
+    Icon: MessageSquare,
+    accent: "var(--gold)",
+    body: <MessagesBody />,
+  },
+  {
+    id: "emergency",
+    href: "/emergency",
+    title: "Emergency",
+    Icon: Siren,
+    accent: "var(--coral)",
+    body: <EmergencyBody />,
+  },
 ];
 
 const byId = (id: string) => CARDS.find((c) => c.id === id)!;
@@ -205,6 +307,9 @@ const DEFAULT_LAYOUT: Layout = [
   { i: "meds", x: 0, y: 2, w: 5, h: 2, minW: 2, minH: 2 },
   { i: "dose", x: 5, y: 2, w: 3, h: 1, minW: 3, minH: 1 },
   { i: "reports", x: 8, y: 2, w: 4, h: 1, minW: 4, minH: 1 },
+  { i: "interaction", x: 5, y: 3, w: 3, h: 1, minW: 2, minH: 1 },
+  { i: "messages", x: 8, y: 3, w: 4, h: 1, minW: 2, minH: 1 },
+  { i: "emergency", x: 0, y: 4, w: 5, h: 1, minW: 2, minH: 1 },
 ];
 
 function Widget({ card }: { card: Card }) {
