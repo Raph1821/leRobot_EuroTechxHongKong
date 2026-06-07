@@ -4,7 +4,7 @@ AI-powered elderly care robot built on the SO-101 arm. Scans and sorts medicatio
 
 **EuroTech × Hong Kong Hackathon · Munich · June 2026**
 
-**Live demo: [elda-care.vercel.app](https://elda-care.vercel.app/)**
+**Team website: [elda-care.vercel.app](https://elda-care.vercel.app/)**
 
 ---
 
