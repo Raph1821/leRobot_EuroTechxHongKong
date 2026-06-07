@@ -1,0 +1,63 @@
+{
+  "scanned_medicines": [],
+  "events": [],
+  "emergencies": [],
+  "medicine_schedule": [],
+  "daily_summaries": [],
+  "briefings": [],
+  "wellbeing_reports": [],
+  "dose_history": [
+    {
+      "id": "t0",
+      "medicine_name": "Vitamin D",
+      "dose": "1 tablet",
+      "scheduled_time": "09:00",
+      "status": "taken",
+      "recorded_at": "2026-06-06T16:54:56+00:00",
+      "source": "manual"
+    },
+    {
+      "id": "t0",
+      "medicine_name": "Vitamin D",
+      "dose": "1 tablet",
+      "scheduled_time": "09:00",
+      "status": "taken",
+      "recorded_at": "2026-06-06T16:54:56+00:00",
+      "source": "manual"
+    },
+    {
+      "id": "t1",
+      "medicine_name": "Vitamin D",
+      "dose": "1 tablet",
+      "scheduled_time": "09:00",
+      "status": "taken",
+      "recorded_at": "2026-06-05T16:54:56+00:00",
+      "source": "manual"
+    },
+    {
+      "id": "t3",
+      "medicine_name": "Vitamin D",
+      "dose": "1 tablet",
+      "scheduled_time": "09:00",
+      "status": "taken",
+      "recorded_at": "2026-06-03T16:54:56+00:00",
+      "source": "manual"
+    }
+  ],
+  "profile": {
+    "name": "",
+    "age": null,
+    "caregiver_name": "",
+    "caregiver_contact": "",
+    "reminder_voice_enabled": true,
+    "notes": [],
+    "baseline": {
+      "daily_interactions": null,
+      "weekly_health_concerns": null,
+      "weekly_emergencies": null,
+      "weekly_voice_help_requests": null,
+      "weekly_missed_reminders": null,
+      "last_updated": null
+    }
+  }
+}

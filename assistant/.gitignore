@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+logs/
+*.log
+care_memory.json
