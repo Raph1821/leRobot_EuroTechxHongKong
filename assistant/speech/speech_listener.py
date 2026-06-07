@@ -5,7 +5,7 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from speech.emergency_phrases import EMERGENCY_PHRASES
+from assistant.speech.emergency_phrases import EMERGENCY_PHRASES
 
 _SAMPLE_RATE = 16000
 _CHUNK_SECONDS = 3
