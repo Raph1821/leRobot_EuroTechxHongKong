@@ -4,11 +4,11 @@
     enable_depth: true
     enable_infra1: false
     enable_infra2: false
-    color_width: 848
-    color_height: 480
-    color_fps: 6
-    depth_width: 640
-    depth_height: 480
-    depth_fps: 6
-    align_depth.enable: true
-    pointcloud.enable: false
+    # D405: color is part of the depth module, NOT rgb_camera
+    depth_module:
+      color_profile: "640,480,6"
+      depth_profile: "640,480,6"
+    align_depth:
+      enable: true
+    pointcloud:
+      enable: false
