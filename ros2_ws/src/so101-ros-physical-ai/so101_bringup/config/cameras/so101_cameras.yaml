@@ -6,8 +6,8 @@ cameras:
     namespace: follower # ns (info of cam location)
 
   - name: cam_overhead
-    camera_type: gscam
-    param_path: so101_gs_cam.yaml
+    camera_type: realsense2_camera
+    param_path: so101_realsense2.yaml
     namespace: static_camera
     # Empty by default — each user calibrates their own camera. An example
     # calibration lives at config/cameras/calibrations/cam_overhead.yaml.
