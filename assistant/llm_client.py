@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from assistant.prompts import SYSTEM_PROMPT
+from interaction.llm.provider import AnthropicProvider
 
 _ENV_PATH = Path(__file__).parent.parent.parent / ".env"
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
@@ -129,9 +130,12 @@ class LLMClient:
             self._disabled = True
             return
         self._disabled = False
-        self._model = os.environ.get("CLAUDE_MODEL", _DEFAULT_MODEL)
-        import anthropic
-        self._client = anthropic.Anthropic(api_key=api_key)
+        model = os.environ.get("CLAUDE_MODEL", _DEFAULT_MODEL)
+        self._provider = AnthropicProvider(model=model, api_key=api_key)
+
+    def _collect(self, gen) -> str:
+        """Collect all text tokens from a provider stream into a single string."""
+        return "".join(token for token in gen if isinstance(token, str))
 
     def ask(self, user_message: str, context: Optional[dict] = None) -> str:
         if self._disabled:
@@ -141,18 +145,11 @@ class LLMClient:
         if context:
             full_message = f"{_format_context(context)}\n\n{user_message}"
 
-        import anthropic
-        response = self._client.messages.create(
-            model=self._model,
+        return self._collect(self._provider.stream(
+            full_message,
+            system_prompt=SYSTEM_PROMPT,
             max_tokens=1024,
-            system=[{
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": full_message}],
-        )
-        return response.content[0].text
+        ))
 
     def look_at_many(self, images_jpeg: list[bytes], user_message: str) -> str:
         """Answer a question about several images using Claude's vision.
@@ -166,32 +163,19 @@ class LLMClient:
         if not images_jpeg:
             return self.ask(user_message)
 
-        import base64
-        content = []
-        for img in images_jpeg:
-            content.append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": base64.b64encode(img).decode(),
-                },
-            })
-        content.append({"type": "text", "text": (
+        prompt = (
             f'The user asked: "{user_message}".\n'
             "These are snapshots of things you saw while looking around the room. "
             "Look at them and reply in ONE or TWO short, warm sentences listing the "
             "items that match the request, mentioning each object specifically "
             "(type/colour). Ignore images that don't match. If none match, say you "
             "couldn't find anything suitable."
-        )})
-
-        response = self._client.messages.create(
-            model=self._model,
-            max_tokens=400,
-            messages=[{"role": "user", "content": content}],
         )
-        return response.content[0].text
+        return self._collect(self._provider.stream(
+            prompt,
+            vision_images=images_jpeg,
+            max_tokens=400,
+        ))
 
     def look_at(self, image_jpeg: bytes, user_message: str) -> str:
         """Answer a question about an image using Claude's vision.
@@ -204,8 +188,6 @@ class LLMClient:
         if not image_jpeg:
             return self.ask(user_message)
 
-        import base64
-        b64 = base64.b64encode(image_jpeg).decode()
         prompt = (
             f'The user asked: "{user_message}".\n'
             "This image is something you saw while looking around the room that "
@@ -214,22 +196,8 @@ class LLMClient:
             "specifically (e.g. its type/color). If nothing in the image actually "
             "matches, say you could not find it."
         )
-        response = self._client.messages.create(
-            model=self._model,
+        return self._collect(self._provider.stream(
+            prompt,
+            vision_images=[image_jpeg],
             max_tokens=300,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": b64,
-                        },
-                    },
-                    {"type": "text", "text": prompt},
-                ],
-            }],
-        )
-        return response.content[0].text
+        ))
