@@ -1,44 +1,87 @@
-# ═══════════════════════════════════════════════════════════════════
-# Carebot — Unified Requirements
+# ══════════════════════════════════════════════════════════════════════════════
+# Elda — Elderly Care Robot
 # EuroTech x Hong Kong Hackathon · Munich 2026
-# ═══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Install all core dependencies:
+#   pip install -r requirements.txt
+#
+# For optional features, see the relevant sections below.
+# ══════════════════════════════════════════════════════════════════════════════
 
-# ─── OCR & Text Matching (ai module) ───
+
+# ── Core Vision ───────────────────────────────────────────────────────────────
+# Camera capture, frame processing, and pose landmark detection.
+opencv-python>=4.10.0
+numpy>=1.24.0
+mediapipe>=0.10.0
+
+
+# ── OCR · Medicine Label Reading ──────────────────────────────────────────────
+# PaddleOCR reads medicine labels from camera frames.
+# rapidfuzz matches raw OCR output against the known medicine vocabulary.
 paddleocr>=2.7.0
 paddlepaddle>=2.6.0
 rapidfuzz>=3.0.0
 
-# ─── Vision / Detection (minh module) ───
-ultralytics>=8.2.0
-opencv-python>=4.10.0
-mediapipe>=0.10.0
 
-# ─── LLM & Interaction ───
+# ── Object Detection ──────────────────────────────────────────────────────────
+# YOLO-based pill detection used in perception/pill_detect_yolo.py.
+ultralytics>=8.2.0
+
+
+# ── LLM · Elda Assistant ──────────────────────────────────────────────────────
+# Claude API client — used exclusively in assistant/llm_client.py.
+# Requires ANTHROPIC_API_KEY environment variable or .env file at repo root.
 anthropic>=0.40.0
-openai>=1.0.0
-boto3>=1.34.0
-httpx>=0.27.0
+
+
+# ── Speech · Voice I/O ────────────────────────────────────────────────────────
+# faster-whisper: on-device speech-to-text (runs on CPU).
+# sounddevice: microphone access for the speech listener.
+# TTS uses the system's built-in speech engine (no additional package needed).
+faster-whisper>=1.0.0
+sounddevice>=0.4.0
+
+
+# ── API Server ────────────────────────────────────────────────────────────────
+# FastAPI backend served by Uvicorn — exposes care data and mode control over HTTP.
 fastapi>=0.110.0
 uvicorn>=0.29.0
-
-# ─── Speech ───
-faster-whisper>=1.0.0
-# openai-whisper              # local Whisper (install separately: pip install openai-whisper)
-SpeechRecognition>=3.10.0
-
-# ─── Semantic Memory ───
-chromadb>=0.5.0
-transformers>=4.40.0
-onnxruntime>=1.17.0
-
-# ─── Robot Policy (optional — needs NVIDIA GPU) ───
-# torch>=2.0.0
-# gr00t                       # NVIDIA GR00T N1.7 (installed via Isaac GR00T)
-# lerobot                     # LeRobot SO-101 control
-# holoscan                    # NVIDIA Holoscan for real-time pipeline
-
-# ─── Utilities ───
-pyyaml>=6.0
-numpy>=1.24.0
-Pillow>=9.0.0
 pydantic>=2.0.0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Optional Features
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Exploration Mode · CLIP Visual Memory ─────────────────────────────────────
+# Required only when using Exploration Mode (press 4 in the main loop).
+# Enables semantic visual search ("where is the water bottle?") via CLIP.
+# The embedding provider supports two backends — install one:
+#
+#   GPU/CPU (PyTorch):    pip install torch transformers Pillow
+#   CPU-only (ONNX):      pip install onnxruntime transformers Pillow
+#
+# torch>=2.0.0
+# transformers>=4.40.0
+# Pillow>=9.0.0
+# onnxruntime>=1.17.0
+
+
+# ── RealSense Depth Camera ────────────────────────────────────────────────────
+# Required only for Dosage Mode (press 3) and perception/realsense_pills.py.
+# Install the Intel RealSense SDK first: https://github.com/IntelRealSense/librealsense
+#
+# pyrealsense2>=2.54.0
+
+
+# ── Robot Policy · Arm Control ────────────────────────────────────────────────
+# Required only for physical manipulation with a LeRobot SO-101 arm.
+# Needs an NVIDIA GPU and the Isaac GR00T environment.
+#
+# torch>=2.0.0
+# gr00t
+# lerobot
+# holoscan
