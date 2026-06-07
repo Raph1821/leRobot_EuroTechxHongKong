@@ -4,13 +4,13 @@ Uses a pre-trained pills model (seblful/pills-detection, classes: tablets,
 capsules) on the Intel RealSense D405 overhead stream. Detects and counts
 individual pills for dose verification.
 
-Model: ai/data/pills_yolov8.onnx  (YOLOv8, ~91% mAP on tablets/capsules)
+Model: data/pills_yolov8.onnx  (YOLOv8, ~91% mAP on tablets/capsules)
 
 Run:
-    python ai/pill_detect_yolo.py                  # count live (RealSense)
-    python ai/pill_detect_yolo.py --expected 2     # verify against prescription
-    python ai/pill_detect_yolo.py --webcam 2       # use a normal webcam
-    python ai/pill_detect_yolo.py --conf 0.3       # lower threshold (detect more)
+    python perception/pill_detect_yolo.py                  # count live (RealSense)
+    python perception/pill_detect_yolo.py --expected 2     # verify against prescription
+    python perception/pill_detect_yolo.py --webcam 2       # use a normal webcam
+    python perception/pill_detect_yolo.py --conf 0.3       # lower threshold (detect more)
 
 Keys (in the window):
     +/-  raise/lower confidence threshold
@@ -24,7 +24,7 @@ import sys
 import numpy as np
 import cv2
 
-_MODEL_PATH = os.path.join(os.path.dirname(__file__), "data", "pills_yolov8.onnx")
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "pills_yolov8.onnx")
 _BATCH = 8  # this ONNX was exported with a fixed batch size of 8
 
 
@@ -32,7 +32,7 @@ def load_model(model_path=_MODEL_PATH):
     from ultralytics import YOLO
     if not os.path.exists(model_path):
         print(f"Model not found: {model_path}")
-        print("Download: curl -L -o ai/data/pills_yolov8.onnx "
+        print("Download: curl -L -o data/pills_yolov8.onnx "
               "https://github.com/seblful/pills-detection/raw/main/best_model.onnx")
         sys.exit(1)
     return YOLO(model_path, task="detect")

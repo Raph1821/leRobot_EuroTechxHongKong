@@ -16,7 +16,7 @@ _MODEL_URL = (
     "pose_landmarker/pose_landmarker_lite/float16/latest/"
     "pose_landmarker_lite.task"
 )
-_MODEL_PATH = Path(__file__).parent.parent / "data" / "pose_landmarker_lite.task"
+_MODEL_PATH = Path(__file__).parent.parent.parent / "data" / "pose_landmarker_lite.task"
 _FALL_CHECK_EVERY = 3  # run fall detector every N frames
 
 

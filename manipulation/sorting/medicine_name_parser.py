@@ -5,7 +5,7 @@ from typing import Optional
 
 from rapidfuzz import process, fuzz
 
-_DATA_PATH = Path(__file__).parent.parent / "data" / "medicine_names.json"
+_DATA_PATH = Path(__file__).parent.parent.parent / "data" / "medicine_names.json"
 _FUZZY_THRESHOLD = 88
 
 
