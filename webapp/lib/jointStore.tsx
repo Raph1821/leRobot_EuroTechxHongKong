@@ -38,6 +38,11 @@ type RobotCtx = {
   status: BridgeStatus;
   cameraFrame: CameraFrame;
   setCameraEnabled: (enabled: boolean) => void;
+  /** teleoperation control */
+  startTeleop: () => void;
+  stopTeleop: () => void;
+  startRecording: () => void;
+  stopRecording: () => void;
 };
 
 const Ctx = createContext<RobotCtx | null>(null);
@@ -162,12 +167,40 @@ export function JointProvider({ children }: { children: React.ReactNode }) {
     [send],
   );
 
+  const startTeleop = useCallback(() => {
+    send({ type: "teleop_start" });
+  }, [send]);
+
+  const stopTeleop = useCallback(() => {
+    send({ type: "teleop_stop" });
+  }, [send]);
+
+  const startRecording = useCallback(() => {
+    send({ type: "episode_record_start" });
+  }, [send]);
+
+  const stopRecording = useCallback(() => {
+    send({ type: "episode_record_stop" });
+  }, [send]);
+
   // 3D follows live feedback when the bridge is up, else the commanded values
   const armValues = status === "online" ? actual : values;
 
   return (
     <Ctx.Provider
-      value={{ values, armValues, setJoint, home, status, cameraFrame, setCameraEnabled }}
+      value={{ 
+        values, 
+        armValues, 
+        setJoint, 
+        home, 
+        status, 
+        cameraFrame, 
+        setCameraEnabled,
+        startTeleop,
+        stopTeleop,
+        startRecording,
+        stopRecording,
+      }}
     >
       {children}
     </Ctx.Provider>

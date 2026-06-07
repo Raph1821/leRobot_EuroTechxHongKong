@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import ControlPanel from "./ControlPanel";
 import SimulatorPanel from "./SimulatorPanel";
+import TeleopPanel from "./TeleopPanel";
 import { useJoints } from "@/lib/jointStore";
 
 // three.js must not run on the server
@@ -16,7 +17,7 @@ const RobotViewer = dynamic(() => import("./RobotViewer"), {
   ),
 });
 
-type Tab = "control" | "simulator";
+type Tab = "control" | "simulator" | "teleop";
 
 export default function ManualControl() {
   const { values, armValues, setJoint, home } = useJoints();
@@ -60,14 +61,26 @@ export default function ManualControl() {
           >
             Simulator
           </button>
+          <button
+            onClick={() => setActiveTab("teleop")}
+            className={`flex-1 py-3 text-center text-xs font-semibold uppercase tracking-wider transition-colors ${
+              activeTab === "teleop"
+                ? "border-b-2 border-ink text-ink"
+                : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            Teleop
+          </button>
         </div>
 
         {/* Tab content */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {activeTab === "control" ? (
             <ControlPanel values={values} onChange={setJoint} onHome={home} />
-          ) : (
+          ) : activeTab === "simulator" ? (
             <SimulatorPanel jointValues={values} />
+          ) : (
+            <TeleopPanel />
           )}
         </div>
       </aside>
