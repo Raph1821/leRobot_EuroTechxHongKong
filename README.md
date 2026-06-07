@@ -1,252 +1,243 @@
-# Carebot SO-101 — AI Medicine Management Robot
+# Elda
 
-**EuroTech x Hong Kong Hackathon · Munich, June 2026 · AI & Robotics Track**
+AI-powered elderly care robot built on the SO-101 arm. Scans and sorts medications, detects falls, speaks to the patient, and gives caregivers a live web dashboard.
 
----
-
-## What the Robot Does (Summary)
-
-The SO-101 is a **stationary robotic care arm** that helps elderly patients manage their medications autonomously. It sits on a table and performs these tasks:
-
-| # | Task | How |
-|---|------|-----|
-| 1 | **Identify medicines** | Wrist camera + PaddleOCR → fuzzy match against 300+ medicine database |
-| 2 | **Check expiration dates** | Regex parser (EU/US/German formats) → alert if expired |
-| 3 | **Sort medicines** | YOLO11 pill detection → GR00T N1.7 pick & place → slots A–E |
-| 4 | **Verify dosage** | Pill counter confirms correct number dispensed |
-| 5 | **Patrol workspace** | Rotate wrist camera, detect falls/anomalies via frame differencing |
-| 6 | **Emergency alerts** | Voice "help" detection → notify hospital + relatives + send photo |
-| 7 | **Voice/text interaction** | Whisper STT + LLM agent (Claude/OpenAI) → understands natural language |
-| 8 | **Reminders & schedule** | Timed medication alerts, morning briefings, daily reports |
-| 9 | **Health check** | Detects health concern keywords in conversation → escalates |
-| 10 | **Memory** | Remembers scanned medicines, events, emergencies (persistent JSON + CLIP spatial) |
+**EuroTech × Hong Kong Hackathon · Munich · June 2026**
 
 ---
 
-## Global Architecture
+<!-- PUT YOUR BEST GIF HERE — robot scanning a medicine bottle or the dashboard live -->
+<!-- <img src="assets/demo.gif" width="800"/> -->
+
+---
+
+## What it does
+
+- Reads medicine labels with OCR and parses expiration dates
+- Falls into PATROL mode and detects falls via pose estimation
+- Counts pills with a RealSense depth camera (DOSAGE mode)
+- Listens for voice commands and "help" / "I fell" emergency phrases
+- Talks back via TTS using Claude or deterministic responses
+- Fires medication reminders on a schedule
+- Scores patient wellbeing from a 14-day rolling signal baseline
+- Generates a daily summary and morning briefing
+- Stores everything to a persistent JSON memory file
+- Serves a Next.js dashboard with live camera, chat, schedules, and a Munich emergency hospital map
+
+---
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         WEBSITE (webapp/)                                │
-│                                                                         │
-│  ┌────────────┐ ┌───────────────────┐ ┌────────────┐ ┌──────────────┐  │
-│  │  Overview   │ │ Simulation &      │ │  Camera    │ │  Interaction │  │
-│  │  Dashboard  │ │ Manual Control    │ │  Live Feed │ │  Chat (LLM)  │  │
-│  └────────────┘ └───────────────────┘ └────────────┘ └──────────────┘  │
-│  ┌────────────┐ ┌───────────────────┐ ┌────────────┐ ┌──────────────┐  │
-│  │  Schedule / │ │  Medications      │ │  Reports & │ │  Emergency   │  │
-│  │  Calendar   │ │  Inventory        │ │  Alerts    │ │  Map (112)   │  │
-│  └────────────┘ └───────────────────┘ └────────────┘ └──────────────┘  │
-│                                                                         │
-│  Next.js 16 · React · Three.js (3D SO-101 viewer) · TailwindCSS        │
-└──────────────────────────────────┬──────────────────────────────────────┘
-                                   │ WebSocket ws://localhost:9090
-┌──────────────────────────────────▼──────────────────────────────────────┐
-│                     ROS2 WebSocket Bridge                                │
-│           so_arm_100_web_bridge (joint cmds, camera, teleop)            │
-└──────────────────────────────────┬──────────────────────────────────────┘
-                                   │ ROS2 Topics & Actions
-        ┌──────────────┬───────────┼───────────┬──────────────┐
-        │  Gazebo Sim  │  SO-101   │  MoveIt2  │  Isaac Sim   │
-        │  (Harmonic)  │  Hardware │ (planning)│  (optional)  │
-        └──────────────┴───────────┴───────────┴──────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  webapp/  (Next.js 16 · React · Three.js · Tailwind)                │
+│                                                                     │
+│  /          overview dashboard        /schedule   medication cal    │
+│  /control   3D SO-101 viewer + arm    /medications inventory        │
+│  /camera    live MJPEG feed           /reports    alerts + stats    │
+│  /interaction  LLM chat              /emergency  Munich hospital map│
+│  /patients  patient profiles         /messages   caregiver inbox    │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │ HTTP (careApi.ts → localhost:8000)
+┌────────────────────────────▼────────────────────────────────────────┐
+│  server/api_server.py  (FastAPI)                                    │
+│                                                                     │
+│  GET  /medicines          GET  /schedule         GET  /events       │
+│  GET  /camera/stream      GET  /camera/snapshot  GET  /doses/history│
+│  POST /schedule           DELETE /schedule/:id   POST /assistant/ask│
+│  GET  /doses/dispensed/last7days                                    │
+└──────────────┬──────────────────────────────────────────────────────┘
+               │ reads shared_frame + care_memory
+┌──────────────▼──────────────────────────────────────────────────────┐
+│  scripts/main.py  —  the Elda main loop                             │
+│                                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
+│  │  SORTING mode    │  │  PATROL mode     │  │  DOSAGE mode     │  │
+│  │                  │  │                  │  │                  │  │
+│  │  OCR webcam      │  │  wrist camera    │  │  RealSense D4xx  │  │
+│  │  PaddleOCR       │  │  MediaPipe pose  │  │  YOLO11 pills    │  │
+│  │  medicine parser │  │  emergency SM    │  │  pill count      │  │
+│  │  expiry parser   │  │  fall detection  │  │  dose verify     │  │
+│  │  scan state SM   │  │                  │  │                  │  │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘  │
+│                                                                     │
+│  faster-whisper STT ──▶ intents.py ──▶ assistant_actions.py        │
+│                                    └──▶ (UNKNOWN only) llm_client  │
+│                                                    └──▶ Claude API  │
+│                                                                     │
+│  CareMemory (data/care_memory.json)                                 │
+│    medicines · schedules · dose history · events · emergencies      │
+│    wellbeing reports · morning briefings · patient profile          │
+│                                                                     │
+│  background threads:                                                │
+│    ReminderChecker — polls schedules every 30 s, fires TTS alerts  │
+└─────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        AI PIPELINE (ai/)                                 │
-│                                                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │ CORE LOOP (main.py)                                                │ │
-│  │  Camera → OCR → Medicine Name + Expiration → Scan State Machine    │ │
-│  └────────────────────────────────────────────────────────────────────┘ │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────────┐   │
-│  │ patrol/      │  │ speech/      │  │ sorting/                    │   │
-│  │ • fall detect│  │ • STT listen │  │ • medicine_name_parser      │   │
-│  │ • frame diff │  │ • emergency  │  │ • expiration_date_parser    │   │
-│  │ • anomaly    │  │   phrases    │  │ • scan_state (state machine)│   │
-│  └──────────────┘  └──────────────┘  └─────────────────────────────┘   │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────────┐   │
-│  │ assistant/   │  │ health/      │  │ memory/                     │   │
-│  │ • intents    │  │ • health     │  │ • care_memory (JSON persist)│   │
-│  │ • actions    │  │   check      │  │ • memory_recall             │   │
-│  │ • LLM client │  │ • keywords   │  │                             │   │
-│  │ • prompts    │  │              │  │                             │   │
-│  └──────────────┘  └──────────────┘  └─────────────────────────────┘   │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────┐                                    │
-│  │ reminders/   │  │ summary/     │                                    │
-│  │ • scheduler  │  │ • daily      │                                    │
-│  │ • timed dose │  │ • morning    │                                    │
-│  │   alerts     │  │   briefing   │                                    │
-│  └──────────────┘  └──────────────┘                                    │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  ros2_ws/src/so101-ros-physical-ai/                                 │
+│                                                                     │
+│  so101_bringup        launch files (follower, leader, cameras,      │
+│                        recording session)                           │
+│  so101_description    URDF + STL meshes (also served to webapp)     │
+│  so101_moveit_config  MoveIt2 motion planning config                │
+│  so101_kinematics     FK/IK nodes, trajectory executor,             │
+│                        GoToJoints / GoToPose services               │
+│  so101_teleop         C++ teleoperation node (leader → follower)    │
+│  so101_inference      policy inference node (gRPC/ZMQ transport)    │
+│  so101_patrol         ROS2 patrol node                              │
+│  so101_pick_place     pick & place ROS2 node                        │
+│  so101_camera_calib   handeye + intrinsic calibration               │
+│  episode_recorder     C++ episode recorder → LeRobot HDF5 dataset   │
+│  feetech_ros2_driver  low-level Feetech STS3215 servo driver        │
+│  policy_server        gRPC/ZMQ inference server (runs LeRobot ACT) │
+└─────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    INTERACTION MODULE (interaction/)                      │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────────┐  ┌─────────────────────────┐   │
-│  │ llm/         │  │ memory/          │  │ speech/                 │   │
-│  │ • agent.py   │  │ • spatial_memory │  │ • transcriber.py        │   │
-│  │   (MCP loop) │  │   (CLIP+ChromaDB)│  │   (Whisper / AWS)       │   │
-│  │ • provider.py│  │ • embedding.py   │  │                         │   │
-│  │   (Anthropic/│  │ • visual_memory  │  │                         │   │
-│  │    Bedrock/  │  │ • vector_db      │  │                         │   │
-│  │    OpenAI)   │  │                  │  │                         │   │
-│  └──────────────┘  └──────────────────┘  └─────────────────────────┘   │
-│                                                                         │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │ web/endpoints.py — FastAPI: /query/stream, /command/stream,      │   │
-│  │                              /transcribe                          │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  interaction/  (semantic workspace memory + LLM agent)              │
+│                                                                     │
+│  memory/   CLIP embeddings + ChromaDB — "where did I see Aspirin?"  │
+│  llm/      streaming LLM agent, MCP tool calling                    │
+│  speech/   Whisper or AWS Transcribe transcriber                    │
+│  web/      FastAPI: /query/stream  /command/stream  /transcribe     │
+└─────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATOR (minh/)                                   │
-│                                                                         │
-│  medicine_orchestrator.py — Full pipeline: scan → sort → dose → verify  │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────────┐   │
-│  │ vision/      │  │ policy/      │  │ dds/                        │   │
-│  │ • YOLO11 pill│  │ • GR00T N1.7 │  │ • publisher/subscriber      │   │
-│  │   detection  │  │   pick&place │  │ • IDL schemas (soarm, cam)  │   │
-│  │ • pill count │  │ • runners    │  │                             │   │
-│  │ • dose reader│  │              │  │                             │   │
-│  └──────────────┘  └──────────────┘  └─────────────────────────────┘   │
-│                                                                         │
-│  ┌──────────────┐  ┌──────────────┐                                    │
-│  │ training/    │  │ holoscan/    │                                    │
-│  │ • hdf5→lrbt │  │ • real-time  │                                    │
-│  │ • GR00T fine │  │   inference  │                                    │
-│  │   tune       │  │   operators  │                                    │
-│  └──────────────┘  └──────────────┘                                    │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    ROS2 PACKAGES (so101_* / so_arm_100_*)                │
-│                                                                         │
-│  so101_description ─── URDF + meshes                                    │
-│  so101_bringup ─────── Launch files (sim + hardware)                    │
-│  so101_moveit_config ── MoveIt2 motion planning                         │
-│  so101_kinematics ───── Forward/inverse kinematics service              │
-│  so101_teleop ───────── Teleoperation node                              │
-│  so101_inference ────── Policy inference (GR00T via ROS)                 │
-│  so101_camera_calib ─── Camera calibration                              │
-│  episode_recorder ───── Record episodes for training                    │
-│  policy_server ──────── gRPC/ZMQ policy inference server                │
-│  so_arm_100_web_bridge ─ WebSocket ↔ ROS2 bridge                        │
-│  so_arm_100_description ─ Gazebo xacro                                  │
-│  so_arm_100_isaac_sim ── Isaac Sim integration                          │
-└─────────────────────────────────────────────────────────────────────────┘
+  coord_server/server.c  — C HTTP server; camera sends detections,
+                           robot polls /command → "hold" when person seen
 ```
 
 ---
 
-## Website Pages (webapp/)
+## Repo layout
 
-| Page | URL | What it does |
-|------|-----|--------------|
-| **Overview** | `/` | Dashboard with status cards, robot mini-viewer |
-| **Simulation & Control** | `/control` | 3D SO-101 viewer + joint sliders (Manual Control tab) + Gazebo diagnostics (Simulator tab). Moving sliders moves the real robot. |
-| **Camera** | `/camera` | Live camera feeds (front, gripper, top, room) |
-| **Interaction** | `/interaction` | Text/voice chat with LLM agent (Ask mode = read-only, Agent mode = can move arm) |
-| **Schedule** | `/schedule` | Weekly prescription calendar (when to take what) |
-| **Medications** | `/medications` | Inventory: stock levels, expiration tracking, add/remove |
-| **Reports & Alerts** | `/reports` | Stats (doses on time, pick&place ops), alerts (low stock, expiring), emergency routing |
-| **Emergency** | `/emergency` | Munich hospital map (Overpass API), nearest hospital, call 112, trigger emergency flow |
-| **Settings** | `/settings` | Robot config (safe mode, collision guard), notification preferences (Gmail, relatives) |
-
----
-
-## Task Checklist
-
-### ✅ Done
-- [x] Medicine identification (PaddleOCR + fuzzy match)
-- [x] Expiration date parsing (regex, multilingual)
-- [x] Scan state machine (accumulate partial results)
-- [x] Fall detection + patrol mode
-- [x] Voice emergency detection ("help", "I fell")
-- [x] Speech-to-text (Whisper local)
-- [x] LLM interaction (Claude / OpenAI / Ollama)
-- [x] Semantic spatial memory (CLIP + ChromaDB, adapted for arm)
-- [x] Web dashboard with 3D SO-101 viewer
-- [x] Manual control → real robot via WebSocket bridge
-- [x] Gazebo simulation support
-- [x] Medication inventory UI
-- [x] Schedule/calendar UI
-- [x] Emergency map (Munich hospitals, Overpass API)
-- [x] Reports & alerts UI
-- [x] Health check (keyword detection + LLM response)
-- [x] Care memory (persistent JSON: medicines, events, emergencies)
-- [x] Reminder system (timed dose alerts)
-- [x] Daily summary / morning briefing
-- [x] Assistant intent classification + actions
-- [x] YOLO11 pill detection pipeline
-- [x] GR00T N1.7 pick & place policy
-- [x] DDS communication layer
-
-### 🔧 In Progress
-- [ ] Expiration date → save to server → medicine management system
-- [ ] Emergency → call ambulance (nearest hospital + relatives via email)
-- [ ] GPS/location sharing for emergency routing
-- [ ] Reminder & schedule → doctor prescription input portal
-- [ ] Speaker integration (TTS output)
-- [ ] Fine-tune YOLO on actual medicine set
-- [ ] Calibrate sorting slot positions on physical setup
-
-### 📋 Planned
-- [ ] Gmail notification integration
-- [ ] Statistical report generation (PDF/email)
-- [ ] Multi-camera stream selector on web
-- [ ] Real-time WebSocket connection status on web
+```
+├── scripts/main.py              Elda main loop (entry point)
+├── server/api_server.py         FastAPI server for the webapp
+├── perception/                  Camera utilities, fall detector, YOLO, RealSense
+├── behavior/
+│   ├── patrol/                  Patrol mode + emergency state machine
+│   ├── reminders/               Background dose reminder thread
+│   ├── exploration/             CLIP-based exploration memory
+│   ├── health/                  Health check (keyword → LLM escalation)
+│   ├── summary/                 Daily summary + morning briefing
+│   └── wellbeing/               Signal extraction + 0–100 risk score + 14-day baseline
+├── assistant/
+│   ├── llm_client.py            Claude API wrapper with CareContext injection
+│   ├── intents.py               Keyword intent classifier
+│   ├── assistant_actions.py     Deterministic handlers; fallback to LLM
+│   ├── speech/                  Whisper STT listener, TTS engine, emergency phrases
+│   └── memory/                  care_memory.py (JSON store) + memory_recall.py
+├── manipulation/
+│   ├── sorting/                 Medicine name parser, expiry parser, scan state machine
+│   └── dosage_counter.py        Pill count verification
+├── core/                        Shared frame buffer, app mode enum, event log
+├── interaction/                 CLIP spatial memory + streaming LLM agent (adapted from DimOS)
+├── coord_server/server.c        C coordination server (person detect → hold command)
+├── webapp/                      Next.js 16 dashboard
+├── ros2_ws/                     ROS2 workspace (SO-101 packages)
+└── data/
+    ├── medicine_names.json       300+ medicine name database
+    └── pose_landmarker_lite.task MediaPipe pose model
+```
 
 ---
 
-## Quick Start
+## How to run
 
-### Web Dashboard (no robot needed)
+### 1. Web dashboard (no robot or camera needed)
+
 ```bash
 cd webapp
 npm install
-npx next dev
+npm run dev
 # → http://localhost:3000
 ```
 
-### AI Pipeline (needs webcam)
+Set `NEXT_PUBLIC_CAREAI_URL` in `webapp/.env.local` to point at the API server:
+
+```
+NEXT_PUBLIC_CAREAI_URL=http://localhost:8000
+# or over ngrok / LAN:
+# NEXT_PUBLIC_CAREAI_URL=https://xxxx.ngrok.app
+```
+
+### 2. AI pipeline
+
 ```bash
 pip install -r requirements.txt
-python ai/main.py
+export ANTHROPIC_API_KEY=sk-ant-...   # or put it in .env at repo root
 ```
 
-### Full ROS2 Stack (Docker)
 ```bash
-docker compose up
-# Web bridge: ws://localhost:9090
-# Web UI: http://localhost:8080
+# Single webcam (OCR + patrol share one camera)
+python scripts/main.py
+
+# Two cameras: OCR webcam on index 1, wrist camera on index 2
+python scripts/main.py --ocr-camera 1 --patrol-camera 2
+
+# Add RealSense for pill counting (press 3 to activate DOSAGE mode)
+python scripts/main.py --ocr-camera 1 --patrol-camera 2 --realsense
+
+# Verify pill count against prescription
+python scripts/main.py --realsense --expected-pills 3
 ```
 
----
+Keys while running:
 
-## Folder Map
+| Key | Action |
+|-----|--------|
+| `1` | SORTING mode (medicine scan + OCR) |
+| `2` | PATROL mode (fall detection) |
+| `3` | DOSAGE mode (pill count via RealSense) |
+| `a` | Talk to Elda |
+| `H` | Health check conversation |
+| `B` | Morning briefing |
+| `Y` | Daily summary |
+| `R` | Check reminders now |
+| `m` | Memory stats |
+| `q` | Quit |
 
+### 3. FastAPI server (connects webapp to AI pipeline)
+
+```bash
+uvicorn server.api_server:app --reload --port 8000
 ```
-leRobot_EuroTechxHongKong/
-├── ai/                    # Vision + speech + assistant + memory + reminders
-├── interaction/           # LLM agent + spatial memory + STT + FastAPI
-├── minh/                  # Orchestrator + YOLO + GR00T + DDS + training
-├── webapp/                # Next.js web dashboard (runs standalone)
-├── so101_*/               # ROS2 packages for SO-101 arm
-├── so_arm_100_*/          # ROS2 packages (Gazebo, bridge, Isaac)
-├── policy_server/         # gRPC/ZMQ inference server
-├── episode_recorder/      # Training data recording
-├── web_interface/         # Legacy Vite UI (ROS2 bridge test client)
-├── Dockerfile             # Full stack container
-├── docker-compose.yaml    # Orchestrated services
-└── requirements.txt       # Python dependencies
+
+Run this alongside `scripts/main.py` so the webapp gets live camera, medicines, and chat.
+
+### 4. Camera utilities
+
+```bash
+python perception/list_cameras.py        # find camera indices
+python perception/check_cameras.py       # assert cameras are accessible
+python perception/preview_camera.py --index 1
+python perception/preview_realsense.py
+```
+
+### 5. ROS2 stack
+
+```bash
+cd ros2_ws
+colcon build
+source install/setup.bash
+
+# Bring up the follower arm
+ros2 launch so101_bringup follower.launch.py
+
+# Teleop (leader → follower)
+ros2 launch so101_bringup teleop.launch.py
+
+# MoveIt2 demo
+ros2 launch so101_bringup follower_moveit_demo.launch.py
+
+# Record an episode for training
+ros2 launch so101_bringup follower_recording.launch.py
+
+# Run policy inference
+ros2 launch so101_inference async_infer.launch.py
 ```
 
 ---
 
 ## Team
 
-Built for the EuroTech x Hong Kong Hackathon, Munich, June 2026.
+EuroTech × Hong Kong Hackathon · Munich · June 2026
