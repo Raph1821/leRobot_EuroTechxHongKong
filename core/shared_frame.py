@@ -1,7 +1,7 @@
 import os
 import cv2
 
-_PATH = "/tmp/careai_frame.jpg"
+_PATH = "/tmp/elda_frame.jpg"
 _TMP = _PATH + ".tmp"
 _ENCODE_PARAMS = [cv2.IMWRITE_JPEG_QUALITY, 75]
 

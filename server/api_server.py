@@ -3,21 +3,18 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Allow imports from ai/ when running via uvicorn from repo root
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
-from memory.care_memory import CareMemory
+from assistant.memory.care_memory import CareMemory
 from assistant.llm_client import LLMClient
 from assistant.care_context_builder import CareContextBuilder
 from assistant.intents import classify_intent, SWITCH_TO_PATROL, SWITCH_TO_SORTING
 from core.shared_frame import get_latest_frame
 
-app = FastAPI(title="CareAI API", version="1.0.0")
+app = FastAPI(title="Elda API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -454,6 +451,6 @@ def assistant_ask(body: AskIn):
             parts.append(llm_answer)
         except Exception as exc:
             if not parts:
-                parts.append(f"CareAI is unavailable right now. ({exc})")
+                parts.append(f"Elda is unavailable right now. ({exc})")
 
     return {"answer": "\n\n".join(parts)}

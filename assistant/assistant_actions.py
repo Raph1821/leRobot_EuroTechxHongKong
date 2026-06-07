@@ -102,7 +102,7 @@ def _recent_events(events: list[dict]) -> ActionResult:
 
 
 def _emergency_status(patrol_status: str, events: list[dict]) -> ActionResult:
-    from patrol.emergency_state import EMERGENCY_CONFIRMED
+    from behavior.patrol.emergency_state import EMERGENCY_CONFIRMED
     if patrol_status == EMERGENCY_CONFIRMED:
         return ActionResult("Active emergency confirmed by patrol system.")
     emergency_events = [
@@ -126,7 +126,7 @@ def _help() -> ActionResult:
         "- Was there an emergency?\n"
         "- Start patrol mode / Switch to sorting mode\n"
         "- How am I doing? / Wellbeing status\n"
-        "- Anything else (answered by CareAI)"
+        "- Anything else (answered by Elda)"
     )
 
 
@@ -142,7 +142,7 @@ def _wellbeing_status(wellbeing_reporter) -> ActionResult:
         lines = [f"Current wellbeing status: {level} (score {score}/100)."]
 
         if reasons:
-            lines.append("CareAI noticed: " + "; ".join(r.lower() for r in reasons) + ".")
+            lines.append("Elda noticed: " + "; ".join(r.lower() for r in reasons) + ".")
         else:
             lines.append("No significant wellbeing risk signals detected.")
 
@@ -222,4 +222,4 @@ def _ask_claude(llm_client, user_message, medicines, events, patrol_status, curr
             context["recent_emergencies"] = recent_emergencies
         return ActionResult(llm_client.ask(user_message, context=context))
     except Exception as exc:
-        return ActionResult(f"CareAI error: {exc}")
+        return ActionResult(f"Elda error: {exc}")

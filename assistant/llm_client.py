@@ -135,7 +135,7 @@ class LLMClient:
 
     def ask(self, user_message: str, context: Optional[dict] = None) -> str:
         if self._disabled:
-            return "CareAI Assistant disabled: ANTHROPIC_API_KEY not set"
+            return "Elda Assistant disabled: ANTHROPIC_API_KEY not set"
 
         full_message = user_message
         if context:
@@ -161,7 +161,7 @@ class LLMClient:
         Lets Claude describe ALL relevant items it sees, not just one.
         """
         if self._disabled:
-            return "CareAI vision disabled: ANTHROPIC_API_KEY not set"
+            return "Elda vision disabled: ANTHROPIC_API_KEY not set"
         images_jpeg = [img for img in images_jpeg if img]
         if not images_jpeg:
             return self.ask(user_message)
@@ -200,7 +200,7 @@ class LLMClient:
         user_message: the user's request, e.g. "I need something I can drink".
         """
         if self._disabled:
-            return "CareAI vision disabled: ANTHROPIC_API_KEY not set"
+            return "Elda vision disabled: ANTHROPIC_API_KEY not set"
         if not image_jpeg:
             return self.ask(user_message)
 

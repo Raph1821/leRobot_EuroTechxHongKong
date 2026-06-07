@@ -2,10 +2,8 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from ai.memory.care_memory import CareMemory
-from ai.wellbeing.wellbeing_signals import WellbeingSignals
+from assistant.memory.care_memory import CareMemory
+from behavior.wellbeing.wellbeing_signals import WellbeingSignals
 
 
 def main() -> None:

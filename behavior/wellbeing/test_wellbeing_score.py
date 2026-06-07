@@ -1,11 +1,9 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from ai.memory.care_memory import CareMemory
-from ai.wellbeing.wellbeing_signals import WellbeingSignals
-from ai.wellbeing.wellbeing_score import WellbeingScore
+from assistant.memory.care_memory import CareMemory
+from behavior.wellbeing.wellbeing_signals import WellbeingSignals
+from behavior.wellbeing.wellbeing_score import WellbeingScore
 
 
 def _check(label: str, signals: dict, expected_level: str) -> None:

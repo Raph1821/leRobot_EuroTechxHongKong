@@ -8,8 +8,8 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 
-from patrol.emergency_state import EMERGENCY_CONFIRMED, EmergencyState
-from patrol.fall_detector import detect_fall_or_lying
+from behavior.patrol.emergency_state import EMERGENCY_CONFIRMED, EmergencyState
+from perception.fall_detector import detect_fall_or_lying
 
 _MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/"

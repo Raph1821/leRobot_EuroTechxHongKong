@@ -39,7 +39,7 @@ def _empty_profile() -> dict:
 
 
 class CareMemory:
-    def __init__(self, path: str = "ai/data/care_memory.json") -> None:
+    def __init__(self, path: str = "data/care_memory.json") -> None:
         self._path = path
         self._data = self.load()
 

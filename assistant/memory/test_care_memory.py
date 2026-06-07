@@ -2,11 +2,9 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from assistant.memory.care_memory import CareMemory
 
-from ai.memory.care_memory import CareMemory
-
-DATA_PATH = "ai/data/care_memory.json"
+DATA_PATH = "data/care_memory.json"
 
 
 def main() -> None:

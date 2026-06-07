@@ -46,7 +46,7 @@ class WellbeingReport:
             "Rules:\n"
             "- Do not diagnose or predict disease.\n"
             "- Use careful, non-alarming language.\n"
-            "- Refer to the system as 'CareAI'.\n"
+            "- Refer to the system as 'Elda'.\n"
             "- If risk is HIGH_RISK or CAUTION, recommend contacting a caregiver.\n"
             "- If all clear, say so warmly."
         )
@@ -63,13 +63,13 @@ class WellbeingReport:
         if level == "NORMAL" and not reasons:
             return (
                 f"Current wellbeing status is NORMAL. "
-                f"CareAI detected no significant concerns over the last {period} days."
+                f"Elda detected no significant concerns over the last {period} days."
             )
 
         parts = [f"Current wellbeing status is {level}."]
 
         if reasons:
-            parts.append(f"CareAI noticed: {'; '.join(r.lower() for r in reasons)}.")
+            parts.append(f"Elda noticed: {'; '.join(r.lower() for r in reasons)}.")
 
         if level == "HIGH_RISK":
             parts.append(_EMERGENCY_SUFFIX)

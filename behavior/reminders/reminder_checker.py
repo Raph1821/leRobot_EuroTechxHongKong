@@ -2,7 +2,7 @@ import threading
 from datetime import datetime
 from typing import Optional
 
-from memory.care_memory import CareMemory
+from assistant.memory.care_memory import CareMemory
 
 
 class ReminderChecker:

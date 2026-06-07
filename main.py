@@ -16,22 +16,22 @@ from paddleocr import PaddleOCR
 from core.event_log import EventLog
 from core.shared_frame import set_latest_frame
 from core.modes import AppMode
-from patrol.patrol_mode import PatrolMode
-from sorting.expiration_date_parser import parse_expiration_date
-from sorting.medicine_name_parser import find_medicine_name
-from sorting.scan_state import MedicineScanState
-from speech.speech_listener import SpeechListener
+from behavior.patrol.patrol_mode import PatrolMode
+from manipulation.sorting.expiration_date_parser import parse_expiration_date
+from manipulation.sorting.medicine_name_parser import find_medicine_name
+from manipulation.sorting.scan_state import MedicineScanState
+from assistant.speech.speech_listener import SpeechListener
 from assistant.llm_client import LLMClient
 from assistant.intents import classify_intent
 from assistant.assistant_actions import handle_intent, ActionResult
-from memory.care_memory import CareMemory
-from memory.memory_recall import MemoryRecall
-from reminders.reminder_checker import ReminderChecker
-from speech.tts_engine import TTSEngine
-from summary.daily_summary import DailySummary
-from summary.morning_briefing import MorningBriefing
-from health.health_check import HealthCheck
-from wellbeing.wellbeing_report import WellbeingReport
+from assistant.memory.care_memory import CareMemory
+from assistant.memory.memory_recall import MemoryRecall
+from behavior.reminders.reminder_checker import ReminderChecker
+from assistant.speech.tts_engine import TTSEngine
+from behavior.summary.daily_summary import DailySummary
+from behavior.summary.morning_briefing import MorningBriefing
+from behavior.health.health_check import HealthCheck
+from behavior.wellbeing.wellbeing_report import WellbeingReport
 
 DEBUG = True
 
@@ -158,7 +158,7 @@ def _rotate_frame(frame, rotate: int):
 def main(ocr_camera: int = 1, patrol_camera: int | None = None,
          use_realsense: bool = False, expected_pills: int | None = None,
          patrol_rotate: int = 270) -> None:
-    """Run the CareAI loop.
+    """Run the Elda loop.
 
     Three-camera setup (full hackathon plan):
       - ocr_camera:    clear webcam → medicine identification + expiration (SORTING mode)
@@ -457,7 +457,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
             print("=============================================\n")
         if key == ord("a"):
             print("\n================ CAREAI ASSISTANT ================")
-            print("Ask CareAI:")
+            print("Ask Elda:")
             try:
                 question = input("> ").strip()
             except (EOFError, KeyboardInterrupt):
@@ -533,7 +533,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
             print("=================================================\n")
             tts.speak(briefing)
         if key == ord("H"):
-            print("\nCareAI Health Check started.")
+            print("\nElda Health Check started.")
             print("How are you feeling right now?")
             try:
                 answer = input("> ").strip()
@@ -541,7 +541,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
                 answer = ""
             if answer:
                 response = health_check.run(answer, llm_client=llm_client, memory=memory, tts=tts)
-                print(f"\nCareAI: {response}\n")
+                print(f"\nElda: {response}\n")
         if key == ord("Y"):
             summary = daily_summary.generate_summary()
             print("\n================ DAILY CARE SUMMARY ================")
@@ -562,8 +562,8 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
                       f"@ {r['scheduled_time']} — {r['status']} ({r['source']})")
             print("=============================================================\n")
         if key == ord("T"):
-            tts.speak("CareAI speaker test.")
-            print("Speaker test: speaking 'CareAI speaker test.'")
+            tts.speak("Elda speaker test.")
+            print("Speaker test: speaking 'Elda speaker test.'")
         if key == ord("R"):
             reminder_checker.check_now()
         if key == ord("S"):
@@ -659,7 +659,7 @@ def main(ocr_camera: int = 1, patrol_camera: int | None = None,
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    parser = argparse.ArgumentParser(description="CareAI — Medicine & Care Assistant")
+    parser = argparse.ArgumentParser(description="Elda — Medicine & Care Assistant")
     parser.add_argument("--ocr-camera", type=int, default=1,
                         help="Camera index for medicine ID + expiration (clear webcam). Default: 1")
     parser.add_argument("--patrol-camera", type=int, default=None,
