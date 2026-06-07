@@ -71,13 +71,19 @@ Every shortcut. **Anything you list here = free.**
 
 ## 5. Pre-existing code
 
-We started preparing for the hackathon ~4 days before the event (around 2026-06-03). During that time we found relevant open-source code, merged it into our repo, and set up a basic project skeleton. We also built a simple team/project presentation website (for demo purposes only, not part of the robot system).
+We started preparing ~4 days before the hackathon (first commit: 2026-06-02; bulk of pre-hackathon work: 2026-06-03 morning). During that preparation window:
+
+- We found relevant open-source code and merged it into the repo (see table below).
+- We built a simple, barely-working project skeleton — a webcam loop feeding frames to PaddleOCR for medicine label reading, with a basic state machine. This is the earliest form of what became `perception/` and `manipulation/`.
+- We built a personal team presentation website (static, presentation only — no robot logic).
+
+Everything else in the repo — fall detection, LLM assistant, reminders, care memory, wellbeing scoring, patrol mode, STT/TTS, FastAPI server, full webapp — was built during the hackathon itself (commits from 2026-06-03 afternoon through 2026-06-07).
 
 | Item | Source | Roughly how much | License |
 |---|---|---|---|
 | Open-source code merged pre-hackathon | *(fill in: repo URL or description of the OSS project)* | *(fill in: e.g. ~N files / the full X module)* | *(fill in: license)* |
-| Team/project presentation website (`webapp/`) | Built by our team pre-hackathon as a static presentation page | Minimal — presentation only, no robot logic | MIT |
-| Basic project skeleton / repo structure | Set up by the team pre-hackathon | Folder layout, empty modules, boilerplate | — |
+| Initial medicine OCR skeleton | Built by our team pre-hackathon | ~3 files: webcam loop, name parser, expiration parser | — |
+| Team presentation website | Built by our team pre-hackathon (static, no robot logic) | Minimal — presentation only | — |
 | Python AI libraries (PaddleOCR, MediaPipe, ultralytics, faster-whisper, etc.) | Standard open-source packages, pip-installed | Libraries only — no code copied | various OSS |
 
 ---
