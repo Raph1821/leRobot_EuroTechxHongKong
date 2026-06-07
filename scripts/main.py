@@ -6,6 +6,11 @@ import queue
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
+
+# Ensure repo root is on sys.path so all top-level modules are importable
+# regardless of which directory the script is invoked from.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Fix PaddlePaddle oneDNN crash on Windows
 os.environ.setdefault("PADDLE_INFERENCE_DISABLE_ONEDNN", "1")
