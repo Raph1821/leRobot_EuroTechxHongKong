@@ -133,8 +133,8 @@ class OverheadPickPlaceNode(Node):
         self._shutdown_mode= False
         self._prev_state   = ""
 
-        self._img_cx       = 212.0   # updated from image size on first frame
-        self._img_cy       = 120.0
+        self._img_cx       = 424.0   # updated from actual image on first frame
+        self._img_cy       = 240.0
         self._last_det: tuple[int, int] | None = None
         self._last_depth: float | None = None
         self._det_cnt      = 0

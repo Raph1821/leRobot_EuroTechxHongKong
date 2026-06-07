@@ -4,7 +4,7 @@
     enable_depth: true
     enable_infra1: false
     enable_infra2: false
-    rgb_camera.color_profile: "640x480x30"
-    depth_module.depth_profile: "640x480x30"
+    rgb_camera.color_profile: "848x480x6"
+    depth_module.depth_profile: "640x480x6"
     align_depth.enable: true
     pointcloud.enable: false
