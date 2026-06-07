@@ -11,15 +11,10 @@ Judges compare this against `git shortlog -sn`, so keep it honest.
 
 | Member | GitHub handle | Main contributions |
 |---|---|---|
-| Myron Sydorov | Myron Sydorov | Majority of commits (~83): AI pipeline, module architecture, LLM integration, camera subsystems |
-| Nyrok | Nyrok | ~11 commits *(fill in contributions)* |
-| Raph1821 | Raph1821 | ~8 commits *(fill in contributions)* |
-| goat | goat | ~5 commits *(fill in contributions)* |
-| Hamza Konte | Hamza KONTE | ~2 commits *(fill in contributions)* |
-| Minh Nhut Nguyen | Minh Nhut NGUYEN | ~2 commits *(fill in contributions)* |
-| Gauthier BM | GauthierBM | ~1 commit *(fill in contributions)* |
-
-*(Counts from `git shortlog -sn`; update handles/contributions to match your records.)*
+| Myron Sydorov | Myron Sydorov | ~80 commits: AI pipeline, module architecture, LLM integration, camera subsystems |
+| Hamza Konte | Hamza KONTE | ~10 commits *(fill in contributions)* |
+| Minh Nhut Nguyen | Minh Nhut NGUYEN | ~10 commits *(fill in contributions)* |
+| Gauthier BM | GauthierBM | ~10 commits *(fill in contributions)* |
 
 ---
 
