@@ -27,6 +27,12 @@ export type CameraFrame = {
   encoding: string;
 } | null;
 
+export type Vector3 = { x: number; y: number; z: number };
+export type Quaternion = { x: number; y: number; z: number; w: number };
+
+export type TrajectoryStatus = "idle" | "executing" | "succeeded" | "aborted";
+export type RecordingStatus = "idle" | "recording" | "replaying";
+
 type RobotCtx = {
   /** commanded values — what the sliders show / send */
   values: JointValues;
@@ -39,10 +45,23 @@ type RobotCtx = {
   cameraFrame: CameraFrame;
   setCameraEnabled: (enabled: boolean) => void;
   /** teleoperation control */
-  startTeleop: () => void;
-  stopTeleop: () => void;
+  teleopEnabled: boolean;
+  setTeleopMode: (enabled: boolean, velocityScale?: number) => void;
+  sendTeleopVelocity: (linear: [number, number, number], angular: [number, number, number]) => void;
+  /** trajectory control */
+  trajectoryStatus: TrajectoryStatus;
+  sendTrajectoryGoal: (waypoints: JointValues[], durations: number[]) => void;
+  /** cartesian control */
+  sendCartesianGoal: (position: Vector3, orientation?: Quaternion, duration?: number) => void;
+  /** episode recording */
+  recordingStatus: RecordingStatus;
   startRecording: () => void;
   stopRecording: () => void;
+  discardRecording: () => void;
+  episodes: string[];
+  replayEpisode: (episodeName: string) => void;
+  stopReplay: () => void;
+  listEpisodes: () => void;
 };
 
 const Ctx = createContext<RobotCtx | null>(null);
@@ -55,6 +74,10 @@ export function JointProvider({ children }: { children: React.ReactNode }) {
   const [actual, setActual] = useState<JointValues>({ ...HOME_POSE }); // feedback
   const [status, setStatus] = useState<BridgeStatus>("offline");
   const [cameraFrame, setCameraFrame] = useState<CameraFrame>(null);
+  const [teleopEnabled, setTeleopEnabled] = useState(false);
+  const [trajectoryStatus, setTrajectoryStatus] = useState<TrajectoryStatus>("idle");
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>("idle");
+  const [episodes, setEpisodes] = useState<string[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   // stream on by default so the Overview preview always has a frame
@@ -77,29 +100,54 @@ export function JointProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handle = (raw: string) => {
-      let msg: { type?: string; joints?: { names: string[]; positions: number[] }; data?: string; width?: number; height?: number; encoding?: string };
+      let msg: any;
       try {
         msg = JSON.parse(raw);
       } catch {
         return;
       }
-      if (msg.type === "joint_state" && msg.joints?.names) {
-        const { names, positions } = msg.joints;
-        setActual((prev) => {
-          const next = { ...prev };
-          names.forEach((bn, i) => {
-            const un = BRIDGE_TO_URDF[bn];
-            if (un != null) next[un] = positions[i];
-          });
-          return next;
-        });
-      } else if (msg.type === "camera_frame" && msg.data) {
-        setCameraFrame({
-          data: msg.data,
-          width: msg.width ?? 0,
-          height: msg.height ?? 0,
-          encoding: msg.encoding ?? "jpeg",
-        });
+      
+      switch (msg.type) {
+        case "joint_state":
+          if (msg.joints?.names) {
+            const { names, positions } = msg.joints;
+            setActual((prev) => {
+              const next = { ...prev };
+              names.forEach((bn: string, i: number) => {
+                const un = BRIDGE_TO_URDF[bn];
+                if (un != null) next[un] = positions[i];
+              });
+              return next;
+            });
+          }
+          break;
+          
+        case "camera_frame":
+          if (msg.data) {
+            setCameraFrame({
+              data: msg.data,
+              width: msg.width ?? 0,
+              height: msg.height ?? 0,
+              encoding: msg.encoding ?? "jpeg",
+            });
+          }
+          break;
+          
+        case "trajectory_status":
+          setTrajectoryStatus(msg.status as TrajectoryStatus);
+          break;
+          
+        case "recording_status":
+          setRecordingStatus(msg.status as RecordingStatus);
+          break;
+          
+        case "episode_list":
+          setEpisodes(msg.episodes || []);
+          break;
+          
+        case "error":
+          console.error("WebSocket error:", msg.message, msg.code);
+          break;
       }
     };
 
@@ -167,20 +215,65 @@ export function JointProvider({ children }: { children: React.ReactNode }) {
     [send],
   );
 
-  const startTeleop = useCallback(() => {
-    send({ type: "teleop_start" });
+  const setTeleopMode = useCallback((enabled: boolean, velocityScale = 0.05) => {
+    send({ type: "teleop_mode", enabled, velocity_scale: velocityScale });
+    setTeleopEnabled(enabled);
+    // Send zero velocity when disabling
+    if (!enabled) {
+      send({ type: "teleop_velocity", linear: [0, 0, 0], angular: [0, 0, 0] });
+    }
   }, [send]);
 
-  const stopTeleop = useCallback(() => {
-    send({ type: "teleop_stop" });
+  const sendTeleopVelocity = useCallback((
+    linear: [number, number, number], 
+    angular: [number, number, number]
+  ) => {
+    send({ type: "teleop_velocity", linear, angular });
+  }, [send]);
+
+  const sendTrajectoryGoal = useCallback((waypoints: JointValues[], durations: number[]) => {
+    const trajectory = waypoints.map((wp, i) => ({
+      positions: JOINTS.filter(j => j.name !== "gripper").map(j => wp[j.name] || 0),
+      duration_sec: durations[i] || 1.0,
+    }));
+    send({ type: "trajectory_goal", waypoints: trajectory });
+  }, [send]);
+
+  const sendCartesianGoal = useCallback((
+    position: Vector3, 
+    orientation?: Quaternion, 
+    duration = 2.0
+  ) => {
+    send({
+      type: "cartesian_goal",
+      position,
+      orientation: orientation || { x: 0, y: 0, z: 0, w: 1 },
+      duration_sec: duration,
+    });
   }, [send]);
 
   const startRecording = useCallback(() => {
-    send({ type: "episode_record_start" });
+    send({ type: "episode_control", command: "start_recording" });
   }, [send]);
 
   const stopRecording = useCallback(() => {
-    send({ type: "episode_record_stop" });
+    send({ type: "episode_control", command: "stop_recording" });
+  }, [send]);
+
+  const discardRecording = useCallback(() => {
+    send({ type: "episode_control", command: "discard_recording" });
+  }, [send]);
+
+  const listEpisodes = useCallback(() => {
+    send({ type: "episode_control", command: "list_episodes" });
+  }, [send]);
+
+  const replayEpisode = useCallback((episodeName: string) => {
+    send({ type: "episode_control", command: "replay_episode", episode_name: episodeName });
+  }, [send]);
+
+  const stopReplay = useCallback(() => {
+    send({ type: "episode_control", command: "stop_replay" });
   }, [send]);
 
   // 3D follows live feedback when the bridge is up, else the commanded values
@@ -196,10 +289,20 @@ export function JointProvider({ children }: { children: React.ReactNode }) {
         status, 
         cameraFrame, 
         setCameraEnabled,
-        startTeleop,
-        stopTeleop,
+        teleopEnabled,
+        setTeleopMode,
+        sendTeleopVelocity,
+        trajectoryStatus,
+        sendTrajectoryGoal,
+        sendCartesianGoal,
+        recordingStatus,
         startRecording,
         stopRecording,
+        discardRecording,
+        episodes,
+        replayEpisode,
+        stopReplay,
+        listEpisodes,
       }}
     >
       {children}
