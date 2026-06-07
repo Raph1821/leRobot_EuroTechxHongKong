@@ -1,69 +1,108 @@
-# assistant/
+# Assistant
 
-Elda's conversational intelligence — the LLM interface, voice I/O pipeline, intent routing, and persistent care memory.
+> Elda's conversational intelligence — the LLM interface, voice I/O pipeline, intent router, and persistent care memory.
 
-## Purpose
+---
 
-This module gives Elda her voice and her memory. It is the only layer that calls the Claude API. All text the user hears or reads passes through here, and all care data the robot needs to remember is stored here. Nothing in `behavior/` or `manipulation/` should call an LLM directly — they go through this module.
+## Overview
 
-## How a voice interaction flows
+`assistant/` is the only module in Elda that communicates with an external AI API. It owns two orthogonal concerns that are deliberately kept together: **speech** (how Elda talks and listens) and **memory** (what Elda knows and remembers). Everything the user hears passes through here; everything the robot needs to recall is stored here.
+
+`behavior/` and `manipulation/` must never call an LLM directly — they invoke functions in this module and receive structured results.
+
+---
+
+## Voice Interaction Pipeline
 
 ```
-Microphone
-    └── speech/speech_listener.py  →  raw transcript
-            └── intents.py         →  classified intent (e.g. TODAY_SCHEDULE, WELLBEING_STATUS, UNKNOWN)
-                    └── assistant_actions.py
-                            ├── deterministic handler  →  direct answer (no LLM)
-                            └── llm_client.py          →  Claude API call with CareContext
-                                    └── speech/tts_engine.py  →  spoken response
+Microphone input
+        │
+        ▼
+speech/speech_listener.py       Transcribe audio to text
+        │
+        ▼
+intents.py                      Classify intent
+        │                       (LIST_MEDICINES · TODAY_SCHEDULE · EMERGENCY_STATUS · UNKNOWN · …)
+        ▼
+assistant_actions.py
+        ├── Known intent  ──▶   Deterministic handler (no API call)
+        └── UNKNOWN       ──▶   llm_client.py  ──▶  Claude API
+                                      │
+                                      ▼
+                              speech/tts_engine.py    Speak the response
 ```
 
-## Files
+Intent classification happens first. Only `UNKNOWN` intents reach the LLM, reducing API latency and cost for common, predictable queries.
 
-### Core LLM layer
+---
 
-`llm_client.py` — wraps the Claude API. Builds a structured `[CareContext]` block from memory and appends it to every prompt so the model always has accurate patient data. Supports text-only and vision (image + text) requests. Requires `ANTHROPIC_API_KEY` in the environment or a `.env` file at the repo root.
+## Components
 
-`prompts.py` — defines `SYSTEM_PROMPT`, the fixed instruction set that tells the LLM who Elda is, what she can answer, and what she must never do (diagnose, invent data, give long disclaimers).
+### LLM Layer
 
-### Intent routing
+| File | Responsibility |
+|---|---|
+| `llm_client.py` | Wraps the Claude API. Builds a `[CareContext]` block from live memory and appends it to every prompt. Supports text and vision (image + text) requests. |
+| `prompts.py` | Defines `SYSTEM_PROMPT` — the fixed instruction set that establishes Elda's identity, scope, and hard limits (no diagnosis, no invented data). |
+| `care_context_builder.py` | Assembles the structured context dictionary from memory before each API call, keeping prompt-building logic separate from the HTTP client. |
+| `elda_capabilities.py` | Declarative registry of all features with their required memory fields. Used for introspection and capability negotiation. |
 
-`intents.py` — a keyword-based intent classifier. Tries to match user input to a named intent (e.g. `LIST_MEDICINES`, `TODAY_SCHEDULE`, `EMERGENCY_STATUS`) before falling back to the LLM. This avoids unnecessary API calls for predictable queries.
+### Intent Routing
 
-`assistant_actions.py` — maps each classified intent to a deterministic handler that reads from memory and returns a structured `ActionResult`. The LLM is only invoked for `UNKNOWN` intents.
+| File | Responsibility |
+|---|---|
+| `intents.py` | Keyword-based classifier that maps user input to a named intent constant before attempting an LLM call. |
+| `assistant_actions.py` | Maps each intent to a deterministic handler. Returns a typed `ActionResult`. Falls back to `llm_client.py` only for `UNKNOWN`. |
 
-`care_context_builder.py` — assembles the `CareContext` dictionary from live memory before each LLM call. Keeps the prompt-building logic out of `llm_client.py`.
+### `speech/` — Voice I/O
 
-`elda_capabilities.py` — declarative registry of all feature capabilities (medicine scanning, scheduling, wellbeing, etc.) with their required memory fields. Used for introspection and future capability negotiation.
+| File | Responsibility |
+|---|---|
+| `speech_listener.py` | Continuously transcribes microphone input and emits text strings to the main loop. |
+| `tts_engine.py` | Converts text to speech. The engine backend can be swapped without changing any caller. |
+| `emergency_phrases.py` | Curated list of trigger phrases (e.g. *"help me"*, *"I fell"*) that bypass intent classification and go directly to the emergency flow. |
 
-### speech/
+### `memory/` — Persistent Care Store
 
-`speech_listener.py` — continuously transcribes microphone input using a speech-to-text engine. Emits text strings to the main loop.
+| File | Responsibility |
+|---|---|
+| `care_memory.py` | Central JSON-backed store. Holds medicines, schedules, dose history, emergencies, events, wellbeing reports, briefings, and the patient profile. All writes are atomic (temp file + `os.replace`) to prevent corruption on shutdown. |
+| `memory_recall.py` | Read-only query helpers over `CareMemory`. Surfaces named slices of history without exposing the storage schema to callers. |
 
-`tts_engine.py` — converts text responses to spoken audio. Wraps the system TTS so the engine can be swapped without changing callers.
+**Default storage path:** `data/care_memory.json`
 
-`emergency_phrases.py` — a curated list of trigger phrases (e.g. "help me", "I fell") that the main loop promotes directly to the emergency flow without passing through intent classification.
-
-### memory/
-
-`care_memory.py` — the central persistent store. Backed by a JSON file (`data/care_memory.json`). Holds scanned medicines, medication schedules, dose history, emergencies, events, wellbeing reports, briefings, and the patient profile. All writes are atomic (temp-file + rename) to avoid corruption on unexpected shutdown.
-
-`memory_recall.py` — read-only query helpers over `CareMemory`. Used to surface specific slices of history without the caller needing to know the storage schema.
+---
 
 ## Configuration
 
-Set `ANTHROPIC_API_KEY` before running:
+Elda's LLM features require an Anthropic API key.
 
 ```bash
-export ANTHROPIC_API_KEY=sk-...
-python main.py
+# Option 1 — environment variable
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Option 2 — .env file at the repository root
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 ```
 
-Or place it in a `.env` file at the repo root — `llm_client.py` loads it automatically.
+`llm_client.py` loads the `.env` file automatically on import. If the key is missing, LLM calls are disabled and Elda falls back to deterministic responses only.
 
-## Running the assistant test
+---
+
+## Running the Tests
 
 ```bash
-python assistant/test_llm_client.py   # requires ANTHROPIC_API_KEY
+# Test the LLM client end-to-end (requires ANTHROPIC_API_KEY)
+python assistant/test_llm_client.py
+
+# Test the care memory store (no API key required)
 python assistant/memory/test_care_memory.py
 ```
+
+---
+
+## Architecture Boundaries
+
+- **Only this module calls the Claude API.** No other module may import an Anthropic SDK directly.
+- `memory/` is readable by `behavior/` modules (e.g., `reminders/`, `wellbeing/`) but must never be written to from outside `assistant/`.
+- `speech/` is called by `behavior/` modules for TTS output, but speech transcription runs only from the main loop.

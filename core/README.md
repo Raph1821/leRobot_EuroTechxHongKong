@@ -1,31 +1,58 @@
-# core/
+# Core
 
-Elda's shared infrastructure — low-level utilities used by every other module.
+> Elda's shared infrastructure — low-level primitives used across every module in the system.
 
-## Purpose
+---
 
-`core/` exists to avoid circular imports and repeated boilerplate. Anything that two or more modules need but that carries no domain logic of its own belongs here. Modules in `core/` must not import from `perception/`, `manipulation/`, `behavior/`, `assistant/`, or `server/`.
+## Overview
 
-## Files
+`core/` provides the utilities that multiple modules need but that belong to no single domain. It exists to prevent circular imports and duplicated boilerplate.
 
-### event_log.py
+**The rule is strict:** modules inside `core/` may only import from the standard library and third-party packages. They must never import from `perception/`, `manipulation/`, `behavior/`, `assistant/`, or `server/`. This keeps `core/` dependency-free and makes it trivial to test in isolation.
 
-Central structured event logger. All significant runtime events (medicines scanned, mode switches, emergencies detected, reminders fired) are written through `EventLog` so they appear in the care memory's event history. Using a single logger ensures consistent timestamp formatting and makes the event stream queryable by `behavior/summary/` and `behavior/wellbeing/`.
+---
 
-### shared_frame.py
+## Components
 
-A process-safe single-slot frame buffer. The camera process encodes the latest frame as a JPEG and atomically writes it to `/tmp/elda_frame.jpg`. The API server reads from the same path to serve live frames over HTTP. The atomic write (temp file + `os.replace`) prevents the server from ever reading a partially written frame.
+### `event_log.py` — Structured Event Logger
 
-This design avoids shared memory or queues between processes while keeping latency low — the frame is always either the last complete one or one update behind.
+Centralised event recording for all significant runtime moments: medicines scanned, mode switches, emergencies detected, reminders fired. Every event is timestamped in ISO 8601 format and written to `assistant/memory/care_memory.py` so it appears in the history available to `behavior/summary/` and `behavior/wellbeing/`.
 
-### modes.py
+Using a single `EventLog` instance across all modules ensures a consistent event schema and a queryable, chronological record of everything Elda observed during a session.
 
-`AppMode` enum — defines the operating modes Elda can be in (`PATROL`, `SORTING`, `IDLE`, etc.). Kept here so that `main.py`, `behavior/patrol/`, and the API server all reference the same constants without any of them depending on each other.
+---
 
-## Guidelines for adding to core/
+### `shared_frame.py` — Process-Safe Frame Buffer
 
-Add a utility here only if:
-1. It is used by two or more top-level modules, and
-2. It contains no domain logic (no care decisions, no LLM calls, no sensor access).
+A single-slot shared frame buffer that allows the camera process and the HTTP server to run in separate processes without shared memory or inter-process queues.
 
-If in doubt, put it in the module that owns it first, and move it here only when a second module needs it.
+**How it works:**
+
+```
+Camera process                      API server process
+      │                                     │
+      ▼                                     ▼
+set_latest_frame(frame)           get_latest_frame()
+      │                                     │
+      └──▶  /tmp/elda_frame.jpg  ◀──────────┘
+            (atomic write via temp file + os.replace)
+```
+
+The atomic write — encode to a temp file, then `os.replace` — guarantees the server never reads a partially written frame. On POSIX systems, `os.replace` is a single kernel call and cannot be interrupted mid-write.
+
+---
+
+### `modes.py` — Application Mode Enum
+
+Defines the `AppMode` enum: `PATROL`, `SORTING`, `IDLE`, and any future operating modes. Centralising this constant means `main.py`, `behavior/patrol/`, and `server/api_server.py` all reference the same values without importing from each other.
+
+---
+
+## When to Add Something Here
+
+Add to `core/` only when **both** conditions are true:
+
+1. The utility is used by two or more top-level modules
+2. It contains no domain logic — no care decisions, no LLM calls, no sensor access
+
+If only one module uses a utility today, keep it in that module. Move it here when a second module genuinely needs it.
