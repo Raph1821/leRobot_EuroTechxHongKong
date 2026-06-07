@@ -34,7 +34,7 @@ export default function InteractionPage() {
     },
   ]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<"ask" | "agent">("agent");
+  const mode = "ask";
   const [isListening, setIsListening] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -140,36 +140,6 @@ export default function InteractionPage() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Mode selector */}
-      <div className="flex items-center gap-3 border-b border-hairline px-6 py-3">
-        <span className="text-xs text-ink-soft">Mode:</span>
-        <button
-          onClick={() => setMode("ask")}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            mode === "ask"
-              ? "bg-ink text-paper"
-              : "bg-paper-2 text-ink-soft hover:text-ink"
-          }`}
-        >
-          Ask (read-only)
-        </button>
-        <button
-          onClick={() => setMode("agent")}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            mode === "agent"
-              ? "bg-ink text-paper"
-              : "bg-paper-2 text-ink-soft hover:text-ink"
-          }`}
-        >
-          Agent (full control)
-        </button>
-        <span className="ml-auto text-[11px] text-ink-soft">
-          {mode === "agent"
-            ? "Can move arm, pick & place, sort medicines"
-            : "Observe only — no arm movement commands"}
-        </span>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="mx-auto max-w-2xl space-y-4">
